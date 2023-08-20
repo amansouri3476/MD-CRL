@@ -1,10 +1,10 @@
 _target_: datamodule.mnist_datamodule.MNISTRegularDataModule
 
 defaults:
-  - dataset: mnist
+  - dataset: mnist # mnist, multi_domain_mnist
   
 dataset_name: mnist
-datamodule_name: mnist
+datamodule_name: ${datamodule.dataset.dataset_name}
 
 path: "/network/datasets/torchvision"
 
