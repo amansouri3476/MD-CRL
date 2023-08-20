@@ -102,8 +102,21 @@ class AutoencoderPL(BasePl):
     def validation_step(self, valid_batch, batch_idx):
         images, labels = valid_batch
         z, recons = self(images)
+
+        # we have the set of labels and latents. We want to train a classifier to predict the labels from latents
+        # using multinomial logistic regression using sklearn
+        # import sklearn
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.metrics import accuracy_score
+        # fit a multinomial logistic regression from z to labels
+        clf = LogisticRegression(random_state=0, max_iter=1000).fit(z.detach().cpu().numpy(), labels.detach().cpu().numpy())
+        # predict the labels from z
+        pred_labels = clf.predict(z.detach().cpu().numpy())
+        # compute the accuracy
+        accuracy = accuracy_score(labels.detach().cpu().numpy(), pred_labels)
+        self.log(f"val_accuracy", accuracy, prog_bar=True)
         loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z)
-        self.log(f"valid_reconstruction_loss", reconstruction_loss.item())
+        self.log(f"val_reconstruction_loss", reconstruction_loss.item())
         # self.log(f"valid_penalty_loss", penalty_loss.item())
         self.log(f"val_loss", loss.item())
         return {"loss": loss, "pred_z": z}
