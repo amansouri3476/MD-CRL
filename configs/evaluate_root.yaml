@@ -4,7 +4,7 @@
 defaults:
   - _self_
   - trainer: default.yaml
-  - model: fc_ckpt.yaml
+  - model: default_ckpt.yaml
   - datamodule: mnist.yaml
   - callbacks: default.yaml # set this to null if you don't want to use callbacks
   - logger: wandb # set to null if you don't want to use any loggers

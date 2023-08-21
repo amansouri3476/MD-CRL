@@ -3,6 +3,7 @@ _target_: models.modules.fc_ae.FCAE
 latent_dim: 32
 width: 28
 height: 28
+num_channels: 1
 
 encoder_fc:
   _target_: models.modules.fc_ae.Encoder
@@ -15,7 +16,7 @@ encoder_fc:
       _target_: torch.nn.Flatten
     Linear1:
       _target_: torch.nn.Linear
-      in_features: ${mult_int:${model.autoencoder.width},${model.autoencoder.height}}
+      in_features: ${mult_int:${model.autoencoder.width},${model.autoencoder.height},${model.autoencoder.num_channels}}
       out_features: 512
     LeakyReLU1:
       _target_: torch.nn.LeakyReLU
@@ -60,7 +61,8 @@ decoder_fc:
   _target_: models.modules.fc_ae.Decoder
   latent_size: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
-  height: ${model.autoencoder.height}  
+  height: ${model.autoencoder.height}
+  num_channels: ${model.autoencoder.num_channels}
 
   decoder_layers:
     Linear1:
@@ -102,8 +104,8 @@ decoder_fc:
     Linear5:
       _target_: torch.nn.Linear
       in_features: 512
-      out_features: ${mult_int:${model.autoencoder.width},${model.autoencoder.height}}
+      out_features: ${mult_int:${model.autoencoder.width},${model.autoencoder.height},${model.autoencoder.num_channels}}
     LeakyReLU5:
-      # _target_: torch.nn.LeakyReLU
+      _target_: torch.nn.LeakyReLU
       # _target_: torch.nn.Tanh
-      _target_: torch.nn.Sigmoid
+      # _target_: torch.nn.Sigmoid

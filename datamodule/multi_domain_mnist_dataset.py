@@ -60,7 +60,7 @@ class MNISTMultiDomainDataset(MNISTBase):
             data = torchvision.datasets.MNIST(self.path, True, transform=self.transform)
         else:
             data = torchvision.datasets.MNIST(self.path, False, transform=self.transform)
-        print(f"------------------ split: {self.split} ------------------")
+
         min_value_channel = data[0][0].min()
         # create the new data by extending each image with two more color channels
         # example: domain_indices[0] = [0, 2, 5, 6, 8, 9, 10], domain_indices[1] = [1, 3, 4, 7]
@@ -78,7 +78,6 @@ class MNISTMultiDomainDataset(MNISTBase):
             domain_color_indices, _ = random_split(list(range(len(domain_indices_))), [len(domain_indices_) * x for x in self.domain_color_probs[domain_idx]])
             for color_idx in range(len(domain_color_indices)): # number of colors per each domain
                 color_indices = domain_color_indices[color_idx] # indices of domain domain_idx that have the color color_idx, e.g., [0, 1, 4, 5]
-                print(f"color_indices: {color_indices}")
                 color = self.domain_color_list[domain_idx][color_idx] # selected from the list of colors for domain domain_idx
                 for idx in color_indices: # for idx in [0, 1, 4, 5]
                     img, label = data[domain_indices_[idx]] # domain_indices_[idx] = [0, 2, 8, 9]

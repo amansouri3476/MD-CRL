@@ -30,6 +30,7 @@ class Decoder(pl.LightningModule):
         self.save_hyperparameters()
         self.width = self.hparams.width
         self.height = self.hparams.height
+        self.num_channels = self.hparams.num_channels
         
         # note that encoder layers are instantiated recursively by hydra, so we only need to connect them
         # by nn.Sequential
@@ -40,7 +41,8 @@ class Decoder(pl.LightningModule):
     def forward(self, x):
         
         # `x` has shape: [batch_size, latent_dim].
-        return torch.reshape(self.layers(x), (-1, 1, self.width, self.height))
+        # self.layers(x) has shape: [batch_size, width*height*num_channels]
+        return torch.reshape(self.layers(x), (-1, self.width, self.height, self.num_channels))
         
 
 class FCAE(pl.LightningModule):
@@ -54,8 +56,7 @@ class FCAE(pl.LightningModule):
         self.decoder_fc = hydra.utils.instantiate(self.hparams.decoder_fc)
         
     def forward(self, image):
-        # `image` has shape: [batch_size, num_channels, width, height].
-
+        # `image` has shape: [batch_size, width, height, num_channels].
         z = self.encoder_fc(image)
         recons = self.decoder_fc(z)
 

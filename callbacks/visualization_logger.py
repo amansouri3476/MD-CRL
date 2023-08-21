@@ -26,20 +26,33 @@ class VisualizationLoggerCallback(Callback):
             pl_module.eval()
             with torch.no_grad():
             
-                images = batch[0][:self.n_samples]
+                images = batch["image"][:self.n_samples]
                 z, recons = self.model(images)
 
                 # renormalize image and recons?
+                num_channels = images.shape[-1]
 
                 fig, ax = plt.subplots(2, self.n_samples, figsize=(10, 4))
                 for idx in range(self.n_samples):
-                    image = images[idx].squeeze().cpu().numpy()
-                    recon_ = recons[idx].squeeze().cpu().numpy()
+                    if num_channels == 1:
+                        image = images[idx].squeeze().cpu().numpy() # [width, height]
+                        recon_ = recons[idx].squeeze().cpu().numpy() # [width, height]
+                        color_map = "gray"
+                    else:
+                        image = images[idx].cpu().numpy() # [width, height, num_channels]
+                        recon_ = self.clamp(recons[idx].cpu().numpy()) # [width, height, num_channels]
+                        color_map = None
+
 
                     # Visualize.
-                    ax[0,idx].imshow(image, cmap="gray")
+                    if color_map == "gray":
+                        ax[0,idx].imshow(image, cmap=color_map)
+                        ax[1,idx].imshow((recon_ * 255).astype(np.uint8), vmin=0, vmax=255, cmap=color_map)
+                    else:
+                        ax[0,idx].imshow(image)
+                        ax[1,idx].imshow(recon_)
+                        
                     ax[0,idx].set_title('Image')
-                    ax[1,idx].imshow((recon_ * 255).astype(np.uint8), vmin=0, vmax=255, cmap="gray")
                     ax[1,idx].set_title('Recon.')
                     ax[0,idx].grid(False)
                     ax[0,idx].axis('off')
@@ -47,5 +60,9 @@ class VisualizationLoggerCallback(Callback):
                     ax[1,idx].axis('off')
 
                 wandb.log({f"Reconstructions": fig})
+
+    # a function to clamps the values of a numpy array between 0,1
+    def clamp(self, x):
+        return np.minimum(np.maximum(x, 0), 1)
 
             

@@ -51,7 +51,6 @@ class MNISTRegularDataModule(LightningDataModule):
         else:
             augmentations = []
 
-        log.info(f"Setting up transformations <{[k for (k, v) in AUGMENTATIONS.items() if k in self.augs]}>")
         transform = transforms.Compose([hydra.utils.instantiate(t) for _, t in self.transforms.items()])
 
         self.train_dataset, self.valid_dataset = torch.utils.data.random_split(
