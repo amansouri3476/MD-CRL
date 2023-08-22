@@ -1,0 +1,27 @@
+_target_: datamodule.base_datamodule.BaseDataModule
+
+defaults:
+  - dataset: synthetic_mixing
+  
+dataset_name: synthetic_mixing
+datamodule_name: ${datamodule.dataset.dataset_name}
+
+seed: ${seed}
+
+transform:
+    augs: [] # choices=["shift", "hflip", "vflip", "scale", "rotate"]
+
+# Concerning the data_loaders
+batch_size: 256
+num_workers: 6
+shuffle: False
+drop_last: False
+
+# Samples
+num_samples:
+    train: 8000
+    valid: 2000
+    test: 2000
+
+   
+transforms:

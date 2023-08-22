@@ -1,0 +1,23 @@
+_target_: models.modules.fc_ae_synthetic.FCAE
+
+latent_dim: datamodule.dataset.z_dim
+
+encoder_fc:
+  _target_: models.modules.fc_ae_synthetic.Encoder
+  latent_dim: ${model.autoencoder.latent_dim}
+
+  encoder_layers:
+    Linear1:
+      _target_: torch.nn.Linear
+      in_features: ${datamodule.dataset.x_dim}
+      out_features: ${datamodule.dataset.z_dim}
+    
+decoder_fc:
+  _target_: models.modules.fc_ae_synthetic.Decoder
+  latent_dim: ${model.autoencoder.latent_dim}
+
+  decoder_layers:
+    Linear1:
+      _target_: torch.nn.Linear
+      in_features: ${datamodule.dataset.z_dim}
+      out_features: ${datamodule.dataset.x_dim}

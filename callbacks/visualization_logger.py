@@ -26,11 +26,14 @@ class VisualizationLoggerCallback(Callback):
             pl_module.eval()
             with torch.no_grad():
             
+                # images, recons: [batch_size, num_channels, width, height]
                 images = batch["image"][:self.n_samples]
                 z, recons = self.model(images)
 
+                images = images.permute(0, 2, 3, 1)
+                recons = recons.permute(0, 2, 3, 1)
+                num_channels = images.shape[1]
                 # renormalize image and recons?
-                num_channels = images.shape[-1]
 
                 fig, ax = plt.subplots(2, self.n_samples, figsize=(10, 4))
                 for idx in range(self.n_samples):

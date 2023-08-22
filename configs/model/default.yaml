@@ -3,7 +3,7 @@ _target_: models.autoencoder_pl.AutoencoderPL
 defaults:
   - scheduler_config: null # options: reduce_on_plateau, linear, polynomial
   - optimizer: adamw # options: adamw, adam
-  - autoencoder: fc_ae # options:
+  - autoencoder: fc_ae_image # options:
   - additional_logger: null # reconstruction_logger
 
 

@@ -1,4 +1,4 @@
-_target_: models.modules.fc_ae.FCAE
+_target_: models.modules.fc_ae_image.FCAE
 
 latent_dim: 32
 width: 28
@@ -7,7 +7,7 @@ num_channels: 1
 
 encoder_fc:
   _target_: models.modules.fc_ae.Encoder
-  latent_size: ${model.autoencoder.latent_dim}
+  latent_dim: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
   height: ${model.autoencoder.height}
 
@@ -59,7 +59,7 @@ encoder_fc:
 
 decoder_fc:
   _target_: models.modules.fc_ae.Decoder
-  latent_size: ${model.autoencoder.latent_dim}
+  latent_dim: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
   height: ${model.autoencoder.height}
   num_channels: ${model.autoencoder.num_channels}

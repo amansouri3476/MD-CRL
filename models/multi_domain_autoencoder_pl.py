@@ -1,7 +1,6 @@
 import torch
 from torch.nn import functional as F
 from .autoencoder_pl import AutoencoderPL
-import hydra
 from omegaconf import OmegaConf
 import wandb
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
@@ -15,13 +14,13 @@ class MultiDomainAutoencoderPL(AutoencoderPL):
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
-
+        self.z_dim = self.hparams.z_dim
         # assert that the z_dim of this model is less than that of its encoder
-        assert self.hparams.z_dim <= self.model.encoder_fc.hparams.latent_dim, f"z_dim of this model ({self.hparams.z_dim}) is greater than that of its encoder ({self.model.encoder_fc.hparams.latent_dim})"
+        # assert self.hparams.z_dim <= self.model.encoder_fc.hparams.latent_dim, f"z_dim of this model ({self.hparams.z_dim}) is greater than that of its encoder ({self.model.encoder_fc.hparams.latent_dim})"
 
     def loss(self, images, recons, z, domains):
 
-        reconstruction_loss = F.mse_loss(recons, images, reduction="mean")
+        reconstruction_loss = F.mse_loss(recons.permute(0, 2, 3, 1), images.permute(0, 2, 3, 1), reduction="mean")
         penalty_loss = 0.
 
         # domain_z_mins is a torch tensor of shape [num_domains, d, top_k] containing the top_k smallest
@@ -61,8 +60,14 @@ class MultiDomainAutoencoderPL(AutoencoderPL):
         return loss, reconstruction_loss, penalty_loss
 
     def training_step(self, train_batch, batch_idx):
+
+        # images: [batch_size, num_channels, width, height]
         images, labels, domains, colors = train_batch["image"], train_batch["label"], train_batch["domain"], train_batch["color"]
+
+        # z: [batch_size, latent_dim]
+        # recons: [batch_size, num_channels, width, height]
         z, recons = self(images)
+
         loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z, domains)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         self.log(f"penalty_loss", penalty_loss.item())
@@ -71,7 +76,12 @@ class MultiDomainAutoencoderPL(AutoencoderPL):
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
-        images, labels = valid_batch["image"], valid_batch["label"]
+
+        # images: [batch_size, num_channels, width, height]
+        images, labels, domains, colors = valid_batch["image"], valid_batch["label"], valid_batch["domain"], valid_batch["color"]
+
+        # z: [batch_size, latent_dim]
+        # recons: [batch_size, num_channels, width, height]
         z, recons = self(images)
 
         # we have the set of labels and latents. We want to train a classifier to predict the labels from latents
@@ -79,16 +89,51 @@ class MultiDomainAutoencoderPL(AutoencoderPL):
         # import sklearn
         from sklearn.linear_model import LogisticRegression
         from sklearn.metrics import accuracy_score
-        # fit a multinomial logistic regression from z to labels
+        # fit a multinomial logistic regression from z to labels and colors
+        # we have 4 classification tasks: 
+        # 1. predicting labels from z[:z_dim]
+        clf = LogisticRegression(random_state=0, max_iter=1000).fit(z[:, :self.z_dim].detach().cpu().numpy(), labels.detach().cpu().numpy())
+        pred_labels = clf.predict(z[:, :self.z_dim].detach().cpu().numpy())
+        accuracy = accuracy_score(labels.detach().cpu().numpy(), pred_labels)
+        self.log(f"digits_accuracy_z", accuracy, prog_bar=True)
+
+        # 2. predicting colors from z[:z_dim]
+        clf = LogisticRegression(random_state=0, max_iter=1000).fit(z[:, :self.z_dim].detach().cpu().numpy(), colors.detach().cpu().numpy())
+        pred_colors = clf.predict(z[:, :self.z_dim].detach().cpu().numpy())
+        accuracy = accuracy_score(colors.detach().cpu().numpy(), pred_colors)
+        self.log(f"colors_accuracy_z", accuracy, prog_bar=True)
+
+        # 3. predicting labels from z[z_dim:]
+        clf = LogisticRegression(random_state=0, max_iter=1000).fit(z[:, self.z_dim:].detach().cpu().numpy(), labels.detach().cpu().numpy())
+        pred_labels = clf.predict(z[:, self.z_dim:].detach().cpu().numpy())
+        accuracy = accuracy_score(labels.detach().cpu().numpy(), pred_labels)
+        self.log(f"digits_accuracy_~z", accuracy, prog_bar=True)
+
+        # 4. predicting colors from z[z_dim:]
+        clf = LogisticRegression(random_state=0, max_iter=1000).fit(z[:, self.z_dim:].detach().cpu().numpy(), colors.detach().cpu().numpy())
+        pred_colors = clf.predict(z[:, self.z_dim:].detach().cpu().numpy())
+        accuracy = accuracy_score(colors.detach().cpu().numpy(), pred_colors)
+        self.log(f"colors_accuracy_~z", accuracy, prog_bar=True)
+
+        # overall accuracy with all z
         clf = LogisticRegression(random_state=0, max_iter=1000).fit(z.detach().cpu().numpy(), labels.detach().cpu().numpy())
         # predict the labels from z
         pred_labels = clf.predict(z.detach().cpu().numpy())
         # compute the accuracy
         accuracy = accuracy_score(labels.detach().cpu().numpy(), pred_labels)
         self.log(f"val_accuracy", accuracy, prog_bar=True)
-        loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z)
+
+        # comptue the average norm of first z_dim dimensions of z
+        z_norm = torch.norm(z[:, :self.z_dim], dim=1).mean()
+        self.log(f"z_norm", z_norm, prog_bar=True)
+        # comptue the average norm of the last n-z_dim dimensions of z
+        z_norm = torch.norm(z[:, self.z_dim:], dim=1).mean()
+        self.log(f"~z_norm", z_norm, prog_bar=True)
+
+
+        loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z, domains)
         self.log(f"val_reconstruction_loss", reconstruction_loss.item())
-        # self.log(f"valid_penalty_loss", penalty_loss.item())
+        self.log(f"valid_penalty_loss", penalty_loss.item())
         self.log(f"val_loss", loss.item())
         return {"loss": loss, "pred_z": z}
 

@@ -14,7 +14,7 @@ import utils.general as utils
 log = utils.get_logger(__name__)
     
 
-class MNISTRegularDataModule(LightningDataModule):
+class BaseDataModule(LightningDataModule):
     def __init__(self
                  , seed: int = 1234
                  , batch_size: int= 128
@@ -51,14 +51,22 @@ class MNISTRegularDataModule(LightningDataModule):
         else:
             augmentations = []
 
-        transform = transforms.Compose([hydra.utils.instantiate(t) for _, t in self.transforms.items()])
+        if self.transforms is not None:
+            transform = transforms.Compose([hydra.utils.instantiate(t) for _, t in self.transforms.items()])
+        else:
+            transform = []
+        
+        if self.num_samples["train"] < 1:
+            lengths = [self.num_samples["train"], self.num_samples["valid"]]
+        else:
+            lengths = [self.num_samples["train"]-self.num_samples["valid"], self.num_samples["valid"]]
 
         self.train_dataset, self.valid_dataset = torch.utils.data.random_split(
                             hydra.utils.instantiate(self.dataset_parameters["train"]["dataset"]
                                                             , transform=transform
                                                             , augmentations=augmentations
                                                             )
-                            , lengths=[self.num_samples["train"], self.num_samples["valid"]]
+                            , lengths=lengths
                             , generator=torch.Generator().manual_seed(self.seed)
         )
 

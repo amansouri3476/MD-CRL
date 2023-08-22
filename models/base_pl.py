@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 from models.utils import update
+import hydra
 
 class BasePl(pl.LightningModule):
     """
@@ -25,3 +26,36 @@ class BasePl(pl.LightningModule):
             # Overriding the hyper-parameters of a checkpoint at an arbitrary depth using a dict structure
             hparams_overrides = self.hparams.pop("hparams_overrides")
             update(self.hparams, hparams_overrides)
+    
+    def configure_optimizers(self):
+
+        params = []
+        for param in self.parameters():
+            if param.requires_grad:
+                params.append(param)
+        
+        optimizer: torch.optim.Optimizer = hydra.utils.instantiate(self.hparams.optimizer
+                                                                   , params
+                                                                  )
+        
+        if self.hparams.get("scheduler_config"):
+            # for pytorch scheduler objects, we should use utils.instantiate()
+            if self.hparams.scheduler_config.scheduler['_target_'].startswith("torch.optim"):
+                scheduler = hydra.utils.instantiate(self.hparams.scheduler_config.scheduler, optimizer)
+
+            # for transformer function calls, we should use utils.call()
+            elif self.hparams.scheduler_config.scheduler['_target_'].startswith("transformers"):
+                scheduler = hydra.utils.call(self.hparams.scheduler_config.scheduler, optimizer)
+            
+            else:
+                raise ValueError("The scheduler specified by scheduler._target_ is not implemented.")
+                
+            scheduler_dict = OmegaConf.to_container(self.hparams.scheduler_config.scheduler_dict
+                                                    , resolve=True)
+            scheduler_dict["scheduler"] = scheduler
+
+            return [optimizer], [scheduler_dict]
+        else:
+            # no scheduling
+            return [optimizer]
+

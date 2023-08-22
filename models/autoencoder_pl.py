@@ -15,7 +15,8 @@ class AutoencoderPL(BasePl):
         super().__init__()
         self.save_hyperparameters(logger=False)
         
-        self.model = hydra.utils.instantiate(self.hparams.autoencoder, _recursive_=False)
+        self.model = ResNet18Autoencoder()
+        # self.model = hydra.utils.instantiate(self.hparams.autoencoder, _recursive_=False)
         if self.hparams.get("autoencoder_ckpt_path", None) is not None:    
             ckpt_path = self.hparams["autoencoder_ckpt_path"]
             # only load the weights, i.e. HPs should be overwritten from the passed config
@@ -51,47 +52,21 @@ class AutoencoderPL(BasePl):
 
     def loss(self, images, recons, z):
 
-        reconstruction_loss = F.mse_loss(recons, images, reduction="mean")
+        # images, recons: [batch_size, num_channels, width, height]
+        reconstruction_loss = F.mse_loss(recons.permute(0, 2, 3, 1), images.permute(0, 2, 3, 1), reduction="mean")
         penalty_loss = 0.
         loss = reconstruction_loss + penalty_loss
         return loss, reconstruction_loss, penalty_loss
 
-    def configure_optimizers(self):
-
-        params = []
-        for param in self.parameters():
-            if param.requires_grad:
-                params.append(param)
-        
-        optimizer: torch.optim.Optimizer = hydra.utils.instantiate(self.hparams.optimizer
-                                                                   , params
-                                                                  )
-        
-        if self.hparams.get("scheduler_config"):
-            # for pytorch scheduler objects, we should use utils.instantiate()
-            if self.hparams.scheduler_config.scheduler['_target_'].startswith("torch.optim"):
-                scheduler = hydra.utils.instantiate(self.hparams.scheduler_config.scheduler, optimizer)
-
-            # for transformer function calls, we should use utils.call()
-            elif self.hparams.scheduler_config.scheduler['_target_'].startswith("transformers"):
-                scheduler = hydra.utils.call(self.hparams.scheduler_config.scheduler, optimizer)
-            
-            else:
-                raise ValueError("The scheduler specified by scheduler._target_ is not implemented.")
-                
-            scheduler_dict = OmegaConf.to_container(self.hparams.scheduler_config.scheduler_dict
-                                                    , resolve=True)
-            scheduler_dict["scheduler"] = scheduler
-
-            return [optimizer], [scheduler_dict]
-        else:
-            # no scheduling
-            return [optimizer]
-
-
     def training_step(self, train_batch, batch_idx):
+
+        # images: [batch_size, num_channels, width, height]
         images, labels = train_batch["image"], train_batch["label"]
+
+        # z: [batch_size, latent_dim]
+        # recons: [batch_size, num_channels, width, height]
         z, recons = self(images)
+
         loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         # self.log(f"penalty_loss", penalty_loss.item())
@@ -100,7 +75,12 @@ class AutoencoderPL(BasePl):
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
+
+        # images: [batch_size, num_channels, width, height]
         images, labels = valid_batch["image"], valid_batch["label"]
+
+        # z: [batch_size, latent_dim]
+        # recons: [batch_size, num_channels, width, height]
         z, recons = self(images)
 
         # we have the set of labels and latents. We want to train a classifier to predict the labels from latents
@@ -185,3 +165,53 @@ class AutoencoderPL(BasePl):
     #             "Linear_Disentanglement": linear_disentanglement_score,
     #         }
     #     )
+
+
+import torch.nn as nn
+import torchvision.models as models
+
+# Autoencoder with ResNet18 Encoder
+class ResNet18Autoencoder(nn.Module):
+    def __init__(self):
+        super(ResNet18Autoencoder, self).__init__()
+        
+        num_channels = 3
+        # Load pretrained ResNet18
+        resnet18 = models.resnet18(pretrained=True)
+        # Modify the last fully connected layer to output 64 features
+        resnet18.fc = nn.Linear(512, 64)
+        self.encoder = resnet18 # nn.Sequential(*list(resnet18.children())[:-2])  # Exclude the last two layers
+
+        # Decoder layers
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=1, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=2),
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 8, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(8, 4, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(4, 4, kernel_size=2, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(4, num_channels, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            # # nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
+            # # nn.ReLU(),
+            # nn.ConvTranspose2d(32, 16, kernel_size=2, stride=1, padding=1),
+            # nn.ReLU(),
+            # nn.ConvTranspose2d(16, 8, kernel_size=4, stride=2, padding=1),
+            # nn.ReLU(),
+            # nn.ConvTranspose2d(8, 3, kernel_size=4, stride=2, padding=1),
+            # nn.Sigmoid()  # Output range [0, 1] for images
+        )
+
+
+    def forward(self, x):
+
+        # x: [batch_size, num_channels, width, height]
+        if x.shape[1] == 1:
+            x = x.repeat(1, 3, 1, 1)
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded.view(encoded.size(0), 64, 1, 1))
+        return encoded, decoded

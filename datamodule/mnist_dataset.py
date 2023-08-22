@@ -43,4 +43,5 @@ class MNISTRegularDataset(MNISTBase):
         return data
 
     def __getitem__(self, idx):
+
         return {"image": self.data[idx][0], "label": self.data[idx][1]}

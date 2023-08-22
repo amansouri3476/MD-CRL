@@ -1,0 +1,74 @@
+dataset_target: datamodule.mixing_dataset.SyntheticMixingDataset
+
+dataset_name: synthetic_mixing
+num_domains: 2
+domain_lengths: [0.5, 0.5]
+domain_dist_ranges: [[1,2], [2,3]]
+
+z_dim: 4
+z_dim_invariant: ${floor_div:${datamodule.dataset.z_dim}, 2} # 2
+x_dim: ${mult_int:${datamodule.dataset.z_dim}, 2} # 8
+
+# mixing_parameters:
+linear: True
+
+dataset_parameters:
+  train:
+    dataset:
+      _target_: ${datamodule.dataset.dataset_target}
+      split: "train"
+      seed: ${datamodule.seed}
+      num_samples: ${datamodule.num_samples.train}
+      num_domains: ${datamodule.dataset.num_domains}
+      domain_lengths: ${datamodule.dataset.domain_lengths}
+      domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      linear: ${datamodule.dataset.linear}
+      z_dim: ${datamodule.dataset.z_dim}
+      z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
+      x_dim: ${datamodule.dataset.x_dim}
+
+    dataloader:
+      batch_size: ${datamodule.batch_size}
+      num_workers: ${datamodule.num_workers}
+      shuffle: ${datamodule.shuffle}
+      drop_last: ${datamodule.drop_last}
+
+  valid:
+    dataset:
+      _target_: ${datamodule.dataset.dataset_target}
+      split: "valid"
+      seed: ${datamodule.seed}
+      num_samples: ${datamodule.num_samples.valid}
+      num_domains: ${datamodule.dataset.num_domains}
+      domain_lengths: ${datamodule.dataset.domain_lengths}
+      domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      linear: ${datamodule.dataset.linear}
+      z_dim: ${datamodule.dataset.z_dim}
+      z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
+      x_dim: ${datamodule.dataset.x_dim}
+
+    dataloader:
+      batch_size: ${datamodule.batch_size}
+      num_workers: ${datamodule.num_workers}
+      shuffle: ${datamodule.shuffle}
+      drop_last: ${datamodule.drop_last}
+
+  test:
+    dataset:
+      _target_: ${datamodule.dataset.dataset_target}
+      split: "test"
+      seed: ${datamodule.seed}
+      num_samples: ${datamodule.num_samples.test}
+      num_domains: ${datamodule.dataset.num_domains}
+      domain_lengths: ${datamodule.dataset.domain_lengths}
+      domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      linear: ${datamodule.dataset.linear}
+      z_dim: ${datamodule.dataset.z_dim}
+      z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
+      x_dim: ${datamodule.dataset.x_dim}
+      
+    dataloader:
+      batch_size: ${datamodule.batch_size}
+      num_workers: ${datamodule.num_workers}
+      shuffle: ${datamodule.shuffle}
+      drop_last: ${datamodule.drop_last}

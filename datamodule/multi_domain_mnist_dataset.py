@@ -87,7 +87,7 @@ class MNISTMultiDomainDataset(MNISTBase):
                     bg_pixels = img[:, :, 0] <= 0.3
                     img[digit_pixels, :] = img[digit_pixels, :] * torch.tensor(COLORS[color]).float()
                     img[bg_pixels, :] = torch.tensor([min_value_channel, min_value_channel, min_value_channel]).float()
-                    new_data[domain_indices_[idx]] = (img, label, mapping[domain_indices_[idx]], color)
+                    new_data[domain_indices_[idx]] = (img.permute(2, 0, 1), label, mapping[domain_indices_[idx]], color)
                 
         # new_data.append((img, label, mapping[domain_indices_[idx]], color))
 
