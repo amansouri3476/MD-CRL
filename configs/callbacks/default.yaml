@@ -13,7 +13,7 @@ model_checkpoint:
   verbose: True
   dirpath: "checkpoints/"
   #filename: "epoch_{epoch:03d}" # TODO: possibly change
-  filename: "${model.logging_name}-{epoch:02d}-{${callbacks.model_checkpoint.monitor}:.2f}" 
+  filename: "${model.logging_name}-{epoch:02d}-{${callbacks.model_checkpoint.monitor}:.2f}-{val_r2_hz_z:.2f}-{val_r2_~hz_z:.2f}" 
   save_on_train_epoch_end: False
   auto_insert_metric_name: True
 #   every_n_epochs: 1
