@@ -104,7 +104,7 @@ class MixingAutoencoderPL(BasePl):
         r2_score = reg.score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
         # log the score
         self.log(f"val_r2", r2_score, prog_bar=True)
-        print(f"======linear regression weights:\n{reg.coef_}")
+        # print(f"======linear regression weights:\n{reg.coef_}")
 
         # we have 4 regression tasks: 
         # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
@@ -159,14 +159,14 @@ class MixingAutoencoderPL(BasePl):
         # print(f"=============== Model Weights ===============:\n{self.model.decoder_fc.layers[0].weight}")
         # print(f"=============== Mixing G ===============:\n{self.trainer.datamodule.train_dataset.dataset.G.t()}")
 
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(2, 1, figsize=(10, 4))
-        ax[0].matshow(self.model.decoder_fc.layers[0].weight.detach().cpu().numpy())
-        ax[0].set_title('Decoder Weight')
-        ax[1].matshow(self.trainer.datamodule.train_dataset.dataset.G.t())
-        ax[1].set_title('Mixing G')
-        import wandb
-        wandb.log({f"Decoder W vs. G": fig})
+        # import matplotlib.pyplot as plt
+        # fig, ax = plt.subplots(2, 1, figsize=(10, 4))
+        # ax[0].matshow(self.model.decoder_fc.layers[0].weight.detach().cpu().numpy())
+        # ax[0].set_title('Decoder Weight')
+        # ax[1].matshow(self.trainer.datamodule.train_dataset.dataset.G.t())
+        # ax[1].set_title('Mixing G')
+        # import wandb
+        # wandb.log({f"Decoder W vs. G": fig})
             
         # ax[0,0].plot(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy(), ".")
         # ax[0,0].set_title('all z_hat vs. all z')
