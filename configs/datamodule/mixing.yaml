@@ -19,8 +19,8 @@ drop_last: False
 
 # Samples
 num_samples:
-    train: 30000
-    valid: 4000
+    train: 10000 # 30000
+    valid: 2000 # 4000
     test: 2000
 
    

@@ -70,7 +70,13 @@ def penalty_loss(z, domains, num_domains, top_k, z_dim_invar):
             domain_z_sorted = domain_z_sorted[:top_k]
             domain_z_maxs[domain_idx, i, :] = domain_z_sorted
 
-    mse_mins = F.mse_loss(domain_z_mins[0], domain_z_mins[1], reduction="mean")
-    mse_maxs = F.mse_loss(domain_z_maxs[0], domain_z_maxs[1], reduction="mean")
+    # compute the pairwise mse of domain_z_mins and add them all together. Same for domain_z_maxs
+    mse_mins = 0
+    mse_maxs = 0
+    for i in range(num_domains):
+        for j in range(i+1, num_domains):
+            mse_mins += F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
+            mse_maxs += F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
+
     
     return (mse_mins + mse_maxs)

@@ -37,6 +37,8 @@ class MixingAutoencoderPL(BasePl):
             for param in self.model.parameters():
                 param.requires_grad = True
 
+        self.num_domains = self.hparams.num_domains
+        self.z_dim_invariant = self.hparams.z_dim_invariant
         self.penalty_weight = 0.
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
@@ -89,10 +91,10 @@ class MixingAutoencoderPL(BasePl):
         z_hat, x_hat = self(x)
 
         if batch_idx % 50 == 0:
-            print(f"============== z_hat min domain 1,2 ==============\n{z_hat[(domain == 0).squeeze(), :2].min()}, {z_hat[(domain == 1).squeeze(), :2].min()}\n")
-            # print(f"============== z_hat min domain 2 ==============\n{z_hat[(domain == 1).squeeze(), :2].min()}\n")
-            print(f"============== z_hat max domain 1,2 ==============\n{z_hat[(domain == 0).squeeze(), :2].max()}, {z_hat[(domain == 1).squeeze(), :2].max()}\n")
-            # print(f"============== z_hat max domain 2 ==============\n{z_hat[(domain == 1).squeeze(), :2].max()}\n")
+            # print all z_hat mins of all domains
+            print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+            # print all z_hat maxs of all domains
+            print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
             print(f"============== ============== ============== ==============\n")
 
         # we have the set of z and z_hat. We want to train a linear regression to predict the

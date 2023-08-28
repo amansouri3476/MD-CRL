@@ -26,15 +26,12 @@ export LD_PRELOAD=/home/aminm/mechanism-based-disentanglement/disentanglement_by
 # --------------------------------- Synthethic Mixing --------------------------------- #
 
 # num_domains = 4
-# python run_training.py ckpt_path=null model.optimizer.lr=0.1,0.01,0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=1.0,0.1,0.01 datamodule.dataset.z_dim=8 model.wait_steps=0,500,1000 model.linear_steps=1,1000,2000 logger.wandb.tags=["narval","more-diversity","penalty-warmup"] --multirun
+python run_training.py ckpt_path=null model/optimizer=adam,adamw model.optimizer.lr=0.1,0.01,0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=1.0,0.1,0.01 datamodule.dataset.z_dim=4,8,12,16,20 model.wait_steps=0,1000 model.linear_steps=1,2000 logger.wandb.tags=["mila","4-domain","fixed"] --multirun
 # python run_training.py ckpt_path=null model.optimizer.lr=0.01 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=0.1 datamodule.dataset.z_dim=8 model.wait_steps=500 model.linear_steps=1000 logger.wandb.tags=["narval","more-diversity","penalty-warmup"]
 # python run_training.py ckpt_path=null model.optimizer.lr=0.01 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=0.1 datamodule.dataset.z_dim=20 logger.wandb.tags=["narval","4-domains"]
 
-# more diversity, more samples, penalty warmup, z=12
-# python run_training.py ckpt_path=null model.optimizer.lr=0.1,0.01,0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=1.0,0.1 datamodule.dataset.z_dim=16 model.wait_steps=0,1000 model.linear_steps=1,1000 logger.wandb.tags=["narval","more-diversity","penalty-warmup"] --multirun
 
-# more diversity, more samples, penalty warmup, z=20, exploring optimizers
-python run_training.py ckpt_path=null model/optimizer=adam,adamw model.optimizer.lr=0.01,0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=1.0,0.1 datamodule.dataset.z_dim=20 model.wait_steps=0,1000 model.linear_steps=1,1000 logger.wandb.tags=["narval","more-diversity","penalty-warmup"] --multirun
+
 # python run_training.py ckpt_path=null model/optimizer=adam model.optimizer.lr=0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=0.1 datamodule.dataset.z_dim=20 model.wait_steps=0 model.linear_steps=1 logger.wandb.tags=["test"]
 python run_training.py ckpt_path=null model/autoencoder=fc_mlp_ae_synthetic model/optimizer=adam model.optimizer.lr=0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=0.1 datamodule.dataset.z_dim=20 model.wait_steps=0 model.linear_steps=1 logger.wandb.tags=["test"]
 

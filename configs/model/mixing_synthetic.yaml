@@ -11,8 +11,8 @@ top_k: 5
 num_domains: ${datamodule.dataset.num_domains}
 z_dim_invariant: ${datamodule.dataset.z_dim_invariant} # make sure it is smaller than encoder's latent_dim
 penalty_weight: 0.01
-wait_steps: 500 # 2000
-linear_steps: 2000 # 3000
+wait_steps: 0 # 500 # 2000
+linear_steps: 1 # 2000 # 3000
 
 
 # full ckpt containing state_dict, callbacks, optimizer, hyperparameters, etc.
