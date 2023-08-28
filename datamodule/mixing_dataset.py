@@ -24,6 +24,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         x_dim: int = 20,
         domain_lengths: Optional[list] = None,
         domain_dist_ranges: Optional[list] = None,
+        invariant_dist_params: Optional[list] = None,
         linear: bool = True,
         **kwargs,
     ):
@@ -42,6 +43,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         self.num_domains = num_domains
         self.domain_lengths = domain_lengths
         self.domain_dist_ranges = domain_dist_ranges
+        self.invariant_dist_params = invariant_dist_params
         self.mixing_G = self._generate_mixing_G(linear, z_dim, x_dim)
         self.data = self._generate_data()
 
@@ -53,7 +55,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         # data is a tensor of size [num_samples, z_dim] where the first z_dim_invariant dimensions are sampled from uniform [0,1]
         z_data = torch.zeros(self.num_samples, self.z_dim)
         # the first z_dim_invariant dimensions are sampled from uniform [0,1]
-        z_data_invar = torch.rand(self.num_samples, self.z_dim_invariant)
+        z_data_invar = torch.rand(self.num_samples, self.z_dim_invariant) * (self.invariant_dist_params[1] - self.invariant_dist_params[0]) + self.invariant_dist_params[0]
         z_data[:, :self.z_dim_invariant] = z_data_invar
 
         # for each domain, create its data, i.e., a tensor of size [num_samples, z_dim-z_dim_invariant] 

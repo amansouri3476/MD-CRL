@@ -37,6 +37,9 @@ class MixingAutoencoderPL(BasePl):
             for param in self.model.parameters():
                 param.requires_grad = True
 
+        self.penalty_weight = 0.
+        self.wait_steps = self.hparams.wait_steps
+        self.linear_steps = self.hparams.linear_steps
 
     def forward(self, x):
         return self.model(x)
@@ -47,7 +50,7 @@ class MixingAutoencoderPL(BasePl):
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
         
         penalty_loss_value = penalty_loss(z_hat, domains, self.hparams.num_domains, self.hparams.top_k, self.z_dim_invariant)
-        loss = reconstruction_loss + penalty_loss_value * self.hparams.penalty_weight
+        loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
         return loss, reconstruction_loss, penalty_loss_value
 
     def training_step(self, train_batch, batch_idx):
@@ -58,6 +61,15 @@ class MixingAutoencoderPL(BasePl):
         # z: [batch_size, latent_dim]
         # x_hat: [batch_size, x_dim]
         z_hat, x_hat = self(x)
+
+        # adjusting self.penalty_weight according to the warmup schedule during training
+        if self.trainer.global_step < self.wait_steps:
+            self.penalty_weight = 0.0
+        elif self.wait_steps <= self.trainer.global_step < self.wait_steps + self.linear_steps:
+            self.penalty_weight = self.hparams.penalty_weight * (self.trainer.global_step - self.wait_steps) / self.linear_steps
+        else:
+            self.penalty_weight = self.hparams.penalty_weight
+        self.log("penalty_weight", self.penalty_weight)
 
         loss, reconstruction_loss, penalty_loss_value = self.loss(x, x_hat, z_hat, domain)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
@@ -76,10 +88,12 @@ class MixingAutoencoderPL(BasePl):
         # x_hat: [batch_size, x_dim]
         z_hat, x_hat = self(x)
 
-        print(f"============== z_hat min domain 1 ==============\n{z_hat[(domain == 0).squeeze(), :2].min()}\n")
-        print(f"============== z_hat min domain 2 ==============\n{z_hat[(domain == 1).squeeze(), :2].min()}\n")
-        print(f"============== z_hat max domain 1 ==============\n{z_hat[(domain == 0).squeeze(), :2].max()}\n")
-        print(f"============== z_hat max domain 2 ==============\n{z_hat[(domain == 1).squeeze(), :2].max()}\n")
+        if batch_idx % 50 == 0:
+            print(f"============== z_hat min domain 1,2 ==============\n{z_hat[(domain == 0).squeeze(), :2].min()}, {z_hat[(domain == 1).squeeze(), :2].min()}\n")
+            # print(f"============== z_hat min domain 2 ==============\n{z_hat[(domain == 1).squeeze(), :2].min()}\n")
+            print(f"============== z_hat max domain 1,2 ==============\n{z_hat[(domain == 0).squeeze(), :2].max()}, {z_hat[(domain == 1).squeeze(), :2].max()}\n")
+            # print(f"============== z_hat max domain 2 ==============\n{z_hat[(domain == 1).squeeze(), :2].max()}\n")
+            print(f"============== ============== ============== ==============\n")
 
         # we have the set of z and z_hat. We want to train a linear regression to predict the
         # z from z_hat using sklearn, and report regression scores

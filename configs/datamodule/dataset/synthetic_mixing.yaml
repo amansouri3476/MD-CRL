@@ -3,7 +3,8 @@ dataset_target: datamodule.mixing_dataset.SyntheticMixingDataset
 dataset_name: synthetic_mixing
 num_domains: 4
 domain_lengths: [0.25, 0.25, 0.25, 0.25] # [0.5, 0.5]
-domain_dist_ranges: [[1,2], [2,3], [-1,1], [-3,-2]] # [[1,2], [2,3]]
+domain_dist_ranges: [[0,1], [1,4], [-5,-2], [-2,0]] # [[1,2], [2,3], [-1,1], [-3,-2]] # [[1,2], [2,3]]
+invariant_dist_params: [1, 2]
 
 z_dim: 4
 z_dim_invariant: ${floor_div:${datamodule.dataset.z_dim}, 2} # 2
@@ -22,6 +23,7 @@ dataset_parameters:
       num_domains: ${datamodule.dataset.num_domains}
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
@@ -42,6 +44,7 @@ dataset_parameters:
       num_domains: ${datamodule.dataset.num_domains}
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
@@ -62,6 +65,7 @@ dataset_parameters:
       num_domains: ${datamodule.dataset.num_domains}
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
