@@ -5,7 +5,7 @@ import hydra
 from omegaconf import OmegaConf
 import wandb
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
-from models.utils import penalty_loss
+from models.utils import penalty_loss_minmax, penalty_loss_stddev
 
 
 class MixingAutoencoderPL(BasePl):
@@ -42,6 +42,16 @@ class MixingAutoencoderPL(BasePl):
         self.penalty_weight = 0.
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
+        self.penalty_criterion = self.hparams.penalty_criterion
+        if self.penalty_criterion == "minmax":
+            self.penalty_loss = penalty_loss_minmax
+        elif self.penalty_criterion == "stddev":
+            self.penalty_loss = penalty_loss_stddev
+        else:
+            raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
+        self.stddev_threshold = self.hparams.stddev_threshold
+        self.stddev_eps = self.hparams.stddev_eps
+        self.hinge_loss_weight = self.hparams.hinge_loss_weight
 
     def forward(self, x):
         return self.model(x)
@@ -51,7 +61,7 @@ class MixingAutoencoderPL(BasePl):
         # x, x_hat: [batch_size, x_dim]
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
         
-        penalty_loss_value = penalty_loss(z_hat, domains, self.hparams.num_domains, self.hparams.top_k, self.z_dim_invariant)
+        penalty_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant, self.hparams.top_k, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
         loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
         return loss, reconstruction_loss, penalty_loss_value
 
@@ -91,11 +101,18 @@ class MixingAutoencoderPL(BasePl):
         z_hat, x_hat = self(x)
 
         if batch_idx % 50 == 0:
-            # print all z_hat mins of all domains
-            print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
-            # print all z_hat maxs of all domains
-            print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
-            print(f"============== ============== ============== ==============\n")
+            if self.penalty_criterion == "minmax":
+                # print all z_hat mins of all domains
+                print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                # print all z_hat maxs of all domains
+                print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                print(f"============== ============== ============== ==============\n")
+            elif self.penalty_criterion == "stddev":
+                # print all z_hat stds of all domains for each of z_dim_invariant dimensions
+                for dim in range(self.z_dim_invariant):
+                    print(f"============== z_hat std all domains dim {dim} ==============\n{[z_hat[(domain == i).squeeze(), dim].std().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                print(f"============== ============== ============== ==============\n")
+
 
         # we have the set of z and z_hat. We want to train a linear regression to predict the
         # z from z_hat using sklearn, and report regression scores

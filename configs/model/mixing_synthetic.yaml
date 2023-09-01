@@ -2,7 +2,7 @@ _target_: models.mixing_autoencoder_pl.MixingAutoencoderPL
 
 defaults:
   - scheduler_config: null # options: reduce_on_plateau, linear, polynomial
-  - optimizer: adamw # options: adamw, adam
+  - optimizer: adam # options: adamw, adam
   - autoencoder: fc_ae_synthetic # options:
   - additional_logger: null # reconstruction_logger
 
@@ -10,7 +10,11 @@ defaults:
 top_k: 5
 num_domains: ${datamodule.dataset.num_domains}
 z_dim_invariant: ${datamodule.dataset.z_dim_invariant} # make sure it is smaller than encoder's latent_dim
+penalty_criterion: "stddev" # options: minmax, stddev
 penalty_weight: 0.01
+stddev_threshold: 1.0
+stddev_eps: 0.0001
+hinge_loss_weight: 25.0
 wait_steps: 0 # 500 # 2000
 linear_steps: 1 # 2000 # 3000
 
