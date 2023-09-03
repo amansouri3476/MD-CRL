@@ -11,7 +11,7 @@ z_dim_invariant: ${floor_div:${datamodule.dataset.z_dim}, 2} # 2
 x_dim: ${mult_int:${datamodule.dataset.z_dim}, 2} # 8
 
 # mixing_parameters:
-linear: False
+linear: True
 non_linearity: "polynomial" # "mlp", "polynomial"
 polynomial_degree: 2
 

@@ -1,11 +1,10 @@
 _target_: models.modules.fc_ae_synthetic.FCAE
 
 activation: torch.nn.ReLU # torch.nn.ReLU, torch.nn.LeakyReLU, torch.nn.Sigmoid, torch.nn.Tanh
-latent_dim: datamodule.dataset.z_dim
+latent_dim: ${model.z_dim_invariant}
 
 encoder_fc:
   _target_: models.modules.fc_ae_synthetic.Encoder
-  latent_dim: ${model.autoencoder.latent_dim}
 
   encoder_layers:
     Linear1:
@@ -20,7 +19,7 @@ encoder_fc:
     Linear2:
       _target_: torch.nn.Linear
       in_features: ${floor_div:${datamodule.dataset.x_dim},2}
-      out_features: ${datamodule.dataset.z_dim}
+      out_features: ${model.autoencoder.latent_dim}
       bias: True
     # ReLU2:
     #   _target_: torch.nn.ReLU
@@ -28,13 +27,12 @@ encoder_fc:
     
 decoder_fc:
   _target_: models.modules.fc_ae_synthetic.Decoder
-  latent_dim: ${model.autoencoder.latent_dim}
 
   decoder_layers:
     Linear1:
       _target_: torch.nn.Linear
-      in_features: ${datamodule.dataset.z_dim}
-      out_features: ${mult_int:${datamodule.dataset.z_dim},2}
+      in_features: ${model.autoencoder.latent_dim}
+      out_features: ${mult_int:${model.autoencoder.latent_dim},2}
       bias: True
     # ReLU1:
     #   _target_: torch.nn.ReLU
@@ -42,7 +40,7 @@ decoder_fc:
       _target_: ${model.autoencoder.activation} # torch.nn.Tanh
     Linear2:
       _target_: torch.nn.Linear
-      in_features: ${mult_int:${datamodule.dataset.z_dim},2}
+      in_features: ${mult_int:${model.autoencoder.latent_dim},2}
       out_features: ${datamodule.dataset.x_dim}
       bias: True
     # ReLU2:

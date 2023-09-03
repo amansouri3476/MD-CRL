@@ -10,7 +10,7 @@ defaults:
 top_k: 5
 num_domains: ${datamodule.dataset.num_domains}
 z_dim_invariant: ${datamodule.dataset.z_dim_invariant} # make sure it is smaller than encoder's latent_dim
-penalty_criterion: "stddev" # options: minmax, stddev
+penalty_criterion: "minmax" # options: minmax, stddev
 penalty_weight: 0.01
 stddev_threshold: 1.0
 stddev_eps: 0.0001
