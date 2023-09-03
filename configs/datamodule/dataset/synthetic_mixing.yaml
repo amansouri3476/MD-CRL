@@ -32,6 +32,8 @@ dataset_parameters:
       num_domains: ${datamodule.dataset.num_domains}
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      domain_dist_ranges_pos: ${datamodule.dataset.domain_dist_ranges_pos}
+      domain_dist_ranges_neg: ${datamodule.dataset.domain_dist_ranges_neg}
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       non_linearity: ${datamodule.dataset.non_linearity}
@@ -56,6 +58,8 @@ dataset_parameters:
       num_domains: ${datamodule.dataset.num_domains}
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      domain_dist_ranges_pos: ${datamodule.dataset.domain_dist_ranges_pos}
+      domain_dist_ranges_neg: ${datamodule.dataset.domain_dist_ranges_neg}
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       non_linearity: ${datamodule.dataset.non_linearity}
@@ -80,6 +84,8 @@ dataset_parameters:
       num_domains: ${datamodule.dataset.num_domains}
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
+      domain_dist_ranges_pos: ${datamodule.dataset.domain_dist_ranges_pos}
+      domain_dist_ranges_neg: ${datamodule.dataset.domain_dist_ranges_neg}
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       non_linearity: ${datamodule.dataset.non_linearity}
