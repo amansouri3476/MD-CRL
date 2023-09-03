@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 from models.utils import update
 import hydra
+from omegaconf import OmegaConf
 
 class BasePl(pl.LightningModule):
     """

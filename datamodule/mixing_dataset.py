@@ -7,7 +7,7 @@ from typing import Callable, Optional
 import utils.general as utils
 log = utils.get_logger(__name__)
 from tqdm import tqdm
-log_ = False
+log_ = True
 
 class SyntheticMixingDataset(torch.utils.data.Dataset):
     """
@@ -44,6 +44,9 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         self.domain_lengths = domain_lengths
         self.domain_dist_ranges = domain_dist_ranges
         self.invariant_dist_params = invariant_dist_params
+        self.mixing_architecture_config = kwargs["mixing_architecture"]
+        self.non_linearity = kwargs["non_linearity"]
+        self.polynomial_degree = kwargs["polynomial_degree"]
         self.mixing_G = self._generate_mixing_G(linear, z_dim, x_dim)
         self.data = self._generate_data()
 
@@ -101,4 +104,28 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
             return lambda z: torch.matmul(z, G)
 
         else:
-            pass
+            if self.non_linearity == "mlp":
+                # instantiate the non-linear G with hydra
+                self.G = torch.nn.Sequential(
+                *[layer_config for _, layer_config in self.mixing_architecture_config.items()]
+                )
+
+                # print all of the parameters of self.G
+                if log_:
+                    log.info("G params:")
+                    for name, param in self.G.named_parameters():
+                        log.info(f"{name}: {param}")
+                # return a lambda function that takes a batch of z and returns Gz
+                # make sure the output does not require any grads, and is simply a torch tensor
+                return lambda z: self.G(z).detach()
+            elif self.non_linearity == "polynomial":
+                # return a function that takes a batch of z and returns a polynomial of z
+                # Generate random coefficients for the polynomial
+                coefficients = torch.randn(self.polynomial_degree + 1, z_dim)
+                def polynomial_function(z):
+                    return torch.sum(coefficients.unsqueeze(0) * z.unsqueeze(1).pow(torch.arange(self.polynomial_degree + 1, dtype=z.dtype, device=z.device)), dim=2)
+                self.G = polynomial_function
+                
+                # Define the polynomial function using lambda
+                return lambda z: self.G(z).detach()
+

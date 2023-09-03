@@ -11,7 +11,9 @@ z_dim_invariant: ${floor_div:${datamodule.dataset.z_dim}, 2} # 2
 x_dim: ${mult_int:${datamodule.dataset.z_dim}, 2} # 8
 
 # mixing_parameters:
-linear: True
+linear: False
+non_linearity: "polynomial" # "mlp", "polynomial"
+polynomial_degree: 2
 
 dataset_parameters:
   train:
@@ -25,9 +27,12 @@ dataset_parameters:
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
+      non_linearity: ${datamodule.dataset.non_linearity}
+      polynomial_degree: ${datamodule.dataset.polynomial_degree}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
       x_dim: ${datamodule.dataset.x_dim}
+      mixing_architecture: ${datamodule.dataset.mixing_architecture}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -46,9 +51,12 @@ dataset_parameters:
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
+      non_linearity: ${datamodule.dataset.non_linearity}
+      polynomial_degree: ${datamodule.dataset.polynomial_degree}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
       x_dim: ${datamodule.dataset.x_dim}
+      mixing_architecture: ${datamodule.dataset.mixing_architecture}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -67,12 +75,33 @@ dataset_parameters:
       domain_dist_ranges: ${datamodule.dataset.domain_dist_ranges}
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
+      non_linearity: ${datamodule.dataset.non_linearity}
+      polynomial_degree: ${datamodule.dataset.polynomial_degree}      
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
       x_dim: ${datamodule.dataset.x_dim}
+      mixing_architecture: ${datamodule.dataset.mixing_architecture}
       
     dataloader:
       batch_size: ${datamodule.batch_size}
       num_workers: ${datamodule.num_workers}
       shuffle: ${datamodule.shuffle}
       drop_last: ${datamodule.drop_last}
+
+
+# mixing architecture if the mixing is not linear
+activation: torch.nn.ReLU # torch.nn.ReLU, torch.nn.LeakyReLU, torch.nn.Sigmoid, torch.nn.Tanh
+mixing_architecture:
+  Linear1:
+      _target_: torch.nn.Linear
+      in_features: ${datamodule.dataset.z_dim}
+      out_features: ${mult_int:${datamodule.dataset.z_dim},2}
+      bias: True
+  ReLU1:
+    _target_: ${datamodule.dataset.activation} # torch.nn.Tanh
+  Linear2:
+    _target_: torch.nn.Linear
+    in_features: ${mult_int:${datamodule.dataset.z_dim},2}
+    out_features: ${datamodule.dataset.x_dim}
+    bias: True
+

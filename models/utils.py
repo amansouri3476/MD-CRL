@@ -40,8 +40,9 @@ def update(d, u):
 
 
 from torch.nn import functional as F
-def penalty_loss_minmax(z, domains, num_domains, top_k, z_dim_invariant, *args):
+def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
 
+    top_k = args[0]
     # domain_z_mins is a torch tensor of shape [num_domains, d, top_k] containing the top_k smallest
     # values of the first d dimensions of z for each domain
     # domain_z_maxs is a torch tensor of shape [num_domains, d, top_k] containing the top_k largest
@@ -121,8 +122,9 @@ def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):
         # of dimension i in domain_z
         for i in range(z_dim_invariant):
             variance_reg[domain_idx] += F.relu(gamma - torch.sqrt(torch.var(domain_z[:, i], dim=0) + epsilon))
+            # print(f"-----1-----:{torch.sqrt(torch.var(domain_z[:, i], dim=0) + epsilon)}\n-----2-----:{gamma - torch.sqrt(torch.var(domain_z[:, i], dim=0) + epsilon)}-----3-----:{F.relu(gamma - torch.sqrt(torch.var(domain_z[:, i], dim=0) + epsilon))}\n-----4-----:{variance_reg[domain_idx]}\n-----5-----:{hinge_loss_weight}")
         # take its mean over z_dim_invariant dimensions
         variance_reg[domain_idx] = variance_reg[domain_idx] / z_dim_invariant
 
-
+    # print(f"-----1-----:{mse_stddev.sum()}\n-----2-----:{hinge_loss_weight * variance_reg.sum()}")
     return mse_stddev.sum() + hinge_loss_weight * variance_reg.sum()
