@@ -1,5 +1,6 @@
 _target_: models.modules.fc_ae_synthetic.FCAE
 
+activation: torch.nn.ReLU # torch.nn.ReLU, torch.nn.LeakyReLU, torch.nn.Sigmoid, torch.nn.Tanh
 latent_dim: datamodule.dataset.z_dim
 
 encoder_fc:
@@ -15,7 +16,7 @@ encoder_fc:
     # ReLU1:
     #   _target_: torch.nn.ReLU
     ReLU1:
-      _target_: torch.nn.Tanh
+      _target_: ${model.autoencoder.activation} # torch.nn.Tanh
     Linear2:
       _target_: torch.nn.Linear
       in_features: ${floor_div:${datamodule.dataset.x_dim},2}
@@ -38,7 +39,7 @@ decoder_fc:
     # ReLU1:
     #   _target_: torch.nn.ReLU
     ReLU1:
-      _target_: torch.nn.Tanh
+      _target_: ${model.autoencoder.activation} # torch.nn.Tanh
     Linear2:
       _target_: torch.nn.Linear
       in_features: ${mult_int:${datamodule.dataset.z_dim},2}

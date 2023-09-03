@@ -21,7 +21,7 @@ defaults:
   # options: submitit_slurm_mila, submitit_slurm_mila_v100_multicore
   # , submitit_slurm_mila_a100, submitit_slurm_narval, submitit_slurm_narval_multicore
   # , submitit_local_
-  - override hydra/launcher: submitit_slurm_narval
+  - override hydra/launcher: submitit_slurm_mila
 
 
 

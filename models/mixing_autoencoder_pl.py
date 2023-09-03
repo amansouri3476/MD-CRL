@@ -16,7 +16,6 @@ class MixingAutoencoderPL(BasePl):
         super().__init__()
         self.save_hyperparameters(logger=False)
         
-        self.z_dim_invariant = self.hparams.z_dim_invariant
         self.model = hydra.utils.instantiate(self.hparams.autoencoder, _recursive_=False)
         if self.hparams.get("autoencoder_ckpt_path", None) is not None:    
             ckpt_path = self.hparams["autoencoder_ckpt_path"]
@@ -38,7 +37,7 @@ class MixingAutoencoderPL(BasePl):
                 param.requires_grad = True
 
         self.num_domains = self.hparams.num_domains
-        self.z_dim_invariant = self.hparams.z_dim_invariant
+        self.z_dim_invariant_model = self.hparams.z_dim_invariant
         self.penalty_weight = 0.
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
@@ -61,7 +60,11 @@ class MixingAutoencoderPL(BasePl):
         # x, x_hat: [batch_size, x_dim]
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
         
-        penalty_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant, self.hparams.top_k, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
+        if self.penalty_criterion == "minmax":
+            penalty_loss_args = [self.hparams.top_k]
+        else:
+            penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
+        penalty_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
         loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
         return loss, reconstruction_loss, penalty_loss_value
 
@@ -103,13 +106,13 @@ class MixingAutoencoderPL(BasePl):
         if batch_idx % 50 == 0:
             if self.penalty_criterion == "minmax":
                 # print all z_hat mins of all domains
-                print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 # print all z_hat maxs of all domains
-                print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 print(f"============== ============== ============== ==============\n")
             elif self.penalty_criterion == "stddev":
                 # print all z_hat stds of all domains for each of z_dim_invariant dimensions
-                for dim in range(self.z_dim_invariant):
+                for dim in range(self.z_dim_invariant_model):
                     print(f"============== z_hat std all domains dim {dim} ==============\n{[z_hat[(domain == i).squeeze(), dim].std().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 print(f"============== ============== ============== ==============\n")
 
@@ -119,6 +122,7 @@ class MixingAutoencoderPL(BasePl):
         # import linear regression from sklearn
         from sklearn.linear_model import LinearRegression
         from sklearn import metrics
+        self.z_dim_invariant_data = self.trainer.datamodule.train_dataset.dataset.z_dim_invariant
 
         # noise = torch.randn_like(z) * 0.00
         # noise.to(z.device)
@@ -143,44 +147,44 @@ class MixingAutoencoderPL(BasePl):
         # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
         reg = LinearRegression()
         # reg.fit(z_hat[:, :self.z_dim_invariant].detach().cpu().numpy(), z[:, :self.z_dim_invariant].detach().cpu().numpy())
-        reg.fit(z[:, :self.z_dim_invariant].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant].detach().cpu().numpy())
+        reg.fit(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         # r2_score = metrics.r2_score(z_hat[:, :self.z_dim_invariant].detach().cpu().numpy(), z[:, :self.z_dim_invariant].detach().cpu().numpy())
         # r2_score = reg.score(z_hat[:, :self.z_dim_invariant].detach().cpu().numpy(), z[:, :self.z_dim_invariant].detach().cpu().numpy())
-        r2_score = reg.score(z[:, :self.z_dim_invariant].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant].detach().cpu().numpy())
+        r2_score = reg.score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"val_r2_hz_z", r2_score, prog_bar=True)
 
         # 2. predicting z[:z_dim_invariant] from z_hat[z_dim_invariant:]
         reg = LinearRegression()
         # reg.fit(z_hat[:, self.z_dim_invariant:].detach().cpu().numpy(), z[:, :self.z_dim_invariant].detach().cpu().numpy())
-        reg.fit(z[:, self.z_dim_invariant:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant].detach().cpu().numpy())
+        reg.fit(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         # r2_score = metrics.r2_score(z_hat[:, self.z_dim_invariant:].detach().cpu().numpy(), z[:, :self.z_dim_invariant].detach().cpu().numpy())
         # r2_score = reg.score(z_hat[:, self.z_dim_invariant:].detach().cpu().numpy(), z[:, :self.z_dim_invariant].detach().cpu().numpy())
-        r2_score = reg.score(z[:, self.z_dim_invariant:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant].detach().cpu().numpy())
+        r2_score = reg.score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"val_r2_~hz_z", r2_score, prog_bar=True)
 
         # 3. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
         reg = LinearRegression()
         # reg.fit(z_hat[:, :self.z_dim_invariant].detach().cpu().numpy(), z[:, self.z_dim_invariant:].detach().cpu().numpy())
-        reg.fit(z[:, :self.z_dim_invariant].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant:].detach().cpu().numpy())
+        reg.fit(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         # r2_score = metrics.r2_score(z_hat[:, :self.z_dim_invariant].detach().cpu().numpy(), z[:, self.z_dim_invariant:].detach().cpu().numpy())
         # r2_score = reg.score(z_hat[:, :self.z_dim_invariant].detach().cpu().numpy(), z[:, self.z_dim_invariant:].detach().cpu().numpy())
-        r2_score = reg.score(z[:, :self.z_dim_invariant].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant:].detach().cpu().numpy())
+        r2_score = reg.score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"val_r2_hz_~z", r2_score, prog_bar=True)
 
         # 4. predicting z[z_dim_invariant:] from z_hat[z_dim_invariant:]
         reg = LinearRegression()
         # reg.fit(z_hat[:, self.z_dim_invariant:].detach().cpu().numpy(), z[:, self.z_dim_invariant:].detach().cpu().numpy())
-        reg.fit(z[:, self.z_dim_invariant:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant:].detach().cpu().numpy())
+        reg.fit(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         # r2_score = metrics.r2_score(z_hat[:, self.z_dim_invariant:].detach().cpu().numpy(), z[:, self.z_dim_invariant:].detach().cpu().numpy())
         # r2_score = reg.score(z_hat[:, self.z_dim_invariant:].detach().cpu().numpy(), z[:, self.z_dim_invariant:].detach().cpu().numpy())
-        r2_score = reg.score(z[:, self.z_dim_invariant:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant:].detach().cpu().numpy())
+        r2_score = reg.score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"val_r2_~hz_~z", r2_score, prog_bar=True)
 
         # comptue the average norm of first z_dim dimensions of z
-        z_norm = torch.norm(z_hat[:, :self.z_dim_invariant], dim=1).mean()
+        z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
         self.log(f"z_norm", z_norm, prog_bar=True)
         # comptue the average norm of the last n-z_dim dimensions of z
-        z_norm = torch.norm(z_hat[:, self.z_dim_invariant:], dim=1).mean()
+        z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
         self.log(f"~z_norm", z_norm, prog_bar=True)
 
         loss, reconstruction_loss, penalty_loss_value = self.loss(x, x_hat, z_hat, domain)
