@@ -58,17 +58,29 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
     for domain_idx in range(num_domains):
         domain_mask = (domains == domain_idx).squeeze()
         domain_z = z[domain_mask]
-        # for each dimension i among the first d dimensions of z, find the top_k
-        # smallest values of dimension i in domain_z
+
+        if domain_z.shape[0] < top_k:
+            print(f"WARNING: domain_z.shape[0] < top_k for domain {domain_idx}")
+            domain_z_mins[domain_idx, :, domain_z.shape[0]:] = 0.
+            domain_z_maxs[domain_idx, :, domain_z.shape[0]:] = 0.
         for i in range(z_dim_invariant):
+            # for each dimension i among the first d dimensions of z, find the top_k
+            # smallest values of dimension i in domain_z
             domain_z_sorted, _ = torch.sort(domain_z[:, i], dim=0)
             domain_z_sorted = domain_z_sorted.squeeze()
             domain_z_sorted = domain_z_sorted[:top_k]
-            domain_z_mins[domain_idx, i, :] = domain_z_sorted
+            if domain_z.shape[0] < top_k:
+                domain_z_mins[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
+            else:
+                domain_z_mins[domain_idx, i, :] = domain_z_sorted
+
             # find the top_k largest values of dimension i in domain_z
             domain_z_sorted, _ = torch.sort(domain_z[:, i], dim=0, descending=True)
             domain_z_sorted = domain_z_sorted.squeeze()
-            domain_z_sorted = domain_z_sorted[:top_k]
+            if domain_z.shape[0] < top_k:
+                domain_z_maxs[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
+            else:
+                domain_z_sorted = domain_z_sorted[:top_k]
             domain_z_maxs[domain_idx, i, :] = domain_z_sorted
 
     # compute the pairwise mse of domain_z_mins and add them all together. Same for domain_z_maxs

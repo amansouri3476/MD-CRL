@@ -5,8 +5,8 @@ gpus: 1 # int # It should be set to 1 so that the gpu will be used.
 #                   Currently the list of all available gpus is being passed to the trainer.
 
 # max_epochs: *n_e # Stop training once this number of epochs is reached.
-min_epochs: 1 # Force training for at least these many epochs.
-max_epochs: 200 # 1_000_000
+min_epochs: 50 # Force training for at least these many epochs.
+max_epochs: 1000 # 1_000_000
 # max_steps: 200000
 # max_steps: 50000 # Disable it and use early stopping
 

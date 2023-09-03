@@ -1,6 +1,6 @@
 _target_: models.modules.fc_ae_synthetic.FCAE
 
-latent_dim: ${model.z_dim_invariant}
+latent_dim: ${model.z_dim}
 
 encoder_fc:
   _target_: models.modules.fc_ae_synthetic.Encoder
