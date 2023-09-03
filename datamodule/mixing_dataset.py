@@ -17,6 +17,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         transform: Optional[Callable] = None, # type: ignore
+        generation_strategy: str = "auto",
         num_samples: int = 20000,
         num_domains: int = 2,
         z_dim: int = 10,
@@ -24,6 +25,8 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         x_dim: int = 20,
         domain_lengths: Optional[list] = None,
         domain_dist_ranges: Optional[list] = None,
+        domain_dist_ranges_pos: Optional[list] = None,
+        domain_dist_ranges_neg: Optional[list] = None,
         invariant_dist_params: Optional[list] = None,
         linear: bool = True,
         **kwargs,
@@ -35,13 +38,14 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
                 return x
 
         self.transform = transform
+        self.generation_strategy = generation_strategy
         self.z_dim = z_dim
         self.z_dim_invariant = z_dim_invariant
         self.z_dim_spurious = int(z_dim - z_dim_invariant)
         self.x_dim = x_dim
         self.num_samples = num_samples
         self.num_domains = num_domains
-        self.domain_lengths = domain_lengths
+        self.domain_lengths = domain_lengths if generation_strategy else [1 / num_domains] * num_domains
         self.domain_dist_ranges = domain_dist_ranges
         self.invariant_dist_params = invariant_dist_params
         self.mixing_architecture_config = kwargs["mixing_architecture"]
@@ -61,17 +65,52 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         z_data_invar = torch.rand(self.num_samples, self.z_dim_invariant) * (self.invariant_dist_params[1] - self.invariant_dist_params[0]) + self.invariant_dist_params[0]
         z_data[:, :self.z_dim_invariant] = z_data_invar
 
-        # for each domain, create its data, i.e., a tensor of size [num_samples, z_dim-z_dim_invariant] 
-        # where each dimension is sampled from uniform [domain_dist_ranges[domain_idx][0], domain_dist_ranges[domain_idx][0]]
-        domain_mask = torch.zeros(self.num_samples, 1)
-        start = 0
-        for domain_idx in range(self.num_domains):
-            domain_size = int(self.domain_lengths[domain_idx] * self.num_samples)
-            end = domain_size + start
-            domain_data = torch.rand(domain_size, self.z_dim_spurious) * (self.domain_dist_ranges[domain_idx][1] - self.domain_dist_ranges[domain_idx][0]) + self.domain_dist_ranges[domain_idx][0]
-            z_data[start:end, self.z_dim_invariant:] = domain_data
-            domain_mask[start:end] = domain_idx
-            start = end
+        if self.generation_strategy == "manual":
+            # for each domain, create its data, i.e., a tensor of size [num_samples, z_dim-z_dim_invariant] 
+            # where each dimension is sampled from uniform [domain_dist_ranges[domain_idx][0], domain_dist_ranges[domain_idx][0]]
+            domain_mask = torch.zeros(self.num_samples, 1)
+            start = 0
+            for domain_idx in range(self.num_domains):
+                domain_size = int(self.domain_lengths[domain_idx] * self.num_samples)
+                end = domain_size + start
+                domain_data = torch.rand(domain_size, self.z_dim_spurious) * (self.domain_dist_ranges[domain_idx][1] - self.domain_dist_ranges[domain_idx][0]) + self.domain_dist_ranges[domain_idx][0]
+                z_data[start:end, self.z_dim_invariant:] = domain_data
+                domain_mask[start:end] = domain_idx
+                start = end
+        else:
+            # for each dimension of the spurious part of z, for each domain, first decide whether it is positive or negative
+            # by tossing a fair coin. Then sample the low and high of this domain from the corresponding domain_dist_ranges_pos
+            # or domain_dist_ranges_neg. Then sample from uniform [low, high] for each domain. 
+            # Repeat this procedure for all spurious dimensions of z.
+            domain_mask = torch.zeros(self.num_samples, 1)
+            for dim_idx in range(self.z_dim_spurious):
+                for domain_idx in range(self.num_domains):
+                    # toss a fair coin to decide whether this dimension is positive or negative
+                    coin = random.randint(0, 1)
+                    if coin == 0:
+                        # sample low and high of the domain distribution from the range
+                        # specified in negative domain distribution. Make sure low < high
+                        low = random.rand() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                        high = random.rand() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                        while low > high:
+                            low = random.rand() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                            high = random.rand() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                    else:
+                        # sample low and high of the domain distribution from the range
+                        # specified in positive domain distribution. Make sure low < high
+                        low = random.rand() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                        high = random.rand() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                        while low > high:
+                            low = random.rand() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                            high = random.rand() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                    
+                    # sample from uniform [low, high] for each domain
+                    domain_size = int(self.domain_lengths[domain_idx] * self.num_samples)
+                    start = int(domain_size * domain_idx)
+                    end = start + domain_size
+                    domain_data = torch.rand(domain_size, 1) * (high - low) + low
+                    z_data[start:end, self.z_dim_invariant + dim_idx] = domain_data
+                    domain_mask[start:end] = domain_idx
 
         # now the data is a tensor of size [num_samples, z_dim] where the first z_dim_invariant
         # dimensions are sampled from uniform [0,1], and the rest are sampled according to domain distributions
