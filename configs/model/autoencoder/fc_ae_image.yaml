@@ -1,6 +1,6 @@
 _target_: models.modules.fc_ae_image.FCAE
 
-latent_dim: 32
+latent_dim: ${model.z_dim}
 width: 28
 height: 28
 num_channels: 1

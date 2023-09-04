@@ -172,19 +172,20 @@ import torchvision.models as models
 
 # Autoencoder with ResNet18 Encoder
 class ResNet18Autoencoder(nn.Module):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(ResNet18Autoencoder, self).__init__()
         
         num_channels = 3
         # Load pretrained ResNet18
         resnet18 = models.resnet18(pretrained=True)
         # Modify the last fully connected layer to output 64 features
-        resnet18.fc = nn.Linear(512, 64)
+        z_dim = kwargs.get("z_dim", 64)
+        resnet18.fc = nn.Linear(512, z_dim)
         self.encoder = resnet18 # nn.Sequential(*list(resnet18.children())[:-2])  # Exclude the last two layers
 
         # Decoder layers
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=1, padding=1),
+            nn.ConvTranspose2d(z_dim, 32, kernel_size=4, stride=1, padding=1),
             nn.ReLU(),
             nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=2),
             nn.ReLU(),

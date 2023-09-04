@@ -1,16 +1,25 @@
-_target_: models.multi_domain_autoencoder_pl.MultiDomainAutoencoderPL
+_target_: models.mnist_md_autoencoder_pl.MNISTMDAutoencoderPL
 
 defaults:
   - scheduler_config: null # options: reduce_on_plateau, linear, polynomial
   - optimizer: adamw # options: adamw, adam
-  - autoencoder: fc_ae # options:
+  - autoencoder: fc_ae_image # options:
   - additional_logger: null # reconstruction_logger
 
 
 top_k: 5
 num_domains: ${datamodule.dataset.num_domains}
-z_dim: 16 # make sure it is smaller than encoder's latent_dim
+z_dim: 16
+z_dim_invariant: ${floor_div:${model.z_dim},2}
+penalty_criterion: "minmax" # options: minmax, stddev
 penalty_weight: 0.1
+stddev_threshold: 1.0
+stddev_eps: 0.0001
+hinge_loss_weight: 25.0
+wait_steps: 0 # 500 # 2000
+linear_steps: 1 # 2000 # 3000
+
+
 
 # full ckpt containing state_dict, callbacks, optimizer, hyperparameters, etc.
 pl_model_ckpt_path: null

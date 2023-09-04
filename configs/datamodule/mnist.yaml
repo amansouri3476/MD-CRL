@@ -1,4 +1,4 @@
-_target_: datamodule.mnist_datamodule.MNISTRegularDataModule
+_target_: datamodule.base_datamodule.BaseDataModule
 
 defaults:
   - dataset: mnist # mnist, multi_domain_mnist

@@ -91,5 +91,23 @@ python run_training.py ckpt_path=null trainer.gpus=0 model/optimizer=adam,adamw 
 # python run_training.py ckpt_path=null trainer.gpus=0 model/optimizer=adam model.optimizer.lr=0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=1.0 datamodule.dataset.z_dim=4 model.wait_steps=0 model.linear_steps=1 logger.wandb.tags=["mila","4-domain","hinge_loss"]
 
 
+# ------------------------------------------------------------------------------------- #
+# -------------------------- MNIST -------------------------- #
+# ------------------------------------------------------------------------------------- #
+
+# ---------------------------- Sweep ---------------------------- #
+# cpu, each sweep contains
+# num_domains=2
+# python run_training.py ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.05,0.01,0.001 datamodule/dataset=multi_domain_mnist model=mnist_md_autoencoder model.autoencoder.num_channels=3 model.z_dim=8,16,32,64 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" datamodule.dataset.num_domains=2 model.penalty_weight=1.0,0.1,0.01 logger.wandb.tags=["mila","sweep-mnist-minmax-nohinge"] --multirun
+# python run_training.py ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.05 datamodule/dataset=multi_domain_mnist model=mnist_md_autoencoder model.autoencoder.num_channels=3 model.z_dim=8 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="val_loss" datamodule.dataset.num_domains=2 model.penalty_weight=1.0 logger.wandb.tags=["mila","sweep-mnist-minmax-nohinge"]
+# num_domains=4
+# python run_training.py ckpt_path=null modelsq/optimizer=adamw model.optimizer.lr=0.05,0.01,0.001 datamodule/dataset=multi_domain_mnist model=mnist_md_autoencoder model.autoencoder.num_channels=3 model.z_dim=8,16,32,64 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" datamodule.dataset.num_domains=4 model.penalty_weight=1.0,0.1,0.01 logger.wandb.tags=["mila","sweep-mnist-minmax-nohinge"] --multirun
+# num_domains=8
+# python run_training.py ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.05,0.01,0.001 datamodule/dataset=multi_domain_mnist model=mnist_md_autoencoder model.autoencoder.num_channels=3 model.z_dim=8,16,32,64 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" datamodule.dataset.num_domains=8 model.penalty_weight=1.0,0.1,0.01 logger.wandb.tags=["mila","sweep-mnist-minmax-nohinge"] --multirun
+# num_domains=16
+# python run_training.py ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.05,0.01,0.001 datamodule/dataset=multi_domain_mnist model=mnist_md_autoencoder model.autoencoder.num_channels=3 model.z_dim=8,16,32,64 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" datamodule.dataset.num_domains=16 model.penalty_weight=1.0,0.1,0.01 logger.wandb.tags=["mila","sweep-mnist-minmax-nohinge"] --multirun
+
+# python run_training.py ckpt_path=null model.optimizer.lr=0.001 datamodule/dataset=multi_domain_mnist datamodule.dataset.num_domains=8 model=mnist_md_autoencoder model.autoencoder.num_channels=3 logger.wandb.tags=["mila","mnist","8-domain","autoencoder"] ~callbacks.early_stopping
+
 conda deactivate
 module purge
