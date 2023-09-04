@@ -38,7 +38,7 @@ class MixingAutoencoderPL(BasePl):
 
         self.num_domains = self.hparams.num_domains
         self.z_dim_invariant_model = self.hparams.z_dim_invariant
-        self.penalty_weight = 0.
+        self.penalty_weight = self.hparams.penalty_weight
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
         self.penalty_criterion = self.hparams.penalty_criterion
@@ -61,12 +61,12 @@ class MixingAutoencoderPL(BasePl):
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
         
         if self.penalty_criterion == "minmax":
-            penalty_loss_args = [self.hparams.top_k]
+            penalty_loss_args = [self.hparams.top_k, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
         else:
             penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        penalty_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+        penalty_loss_value, hinge_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
         loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
-        return loss, reconstruction_loss, penalty_loss_value
+        return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
 
     def training_step(self, train_batch, batch_idx):
 
@@ -86,9 +86,10 @@ class MixingAutoencoderPL(BasePl):
             self.penalty_weight = self.hparams.penalty_weight
         self.log("penalty_weight", self.penalty_weight)
 
-        loss, reconstruction_loss, penalty_loss_value = self.loss(x, x_hat, z_hat, domain)
+        loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domain)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         self.log(f"train_penalty_loss", penalty_loss_value.item())
+        self.log(f"train_hinge_loss", hinge_loss_value.item())
         self.log(f"train_loss", loss.item())
 
         return loss
@@ -187,9 +188,20 @@ class MixingAutoencoderPL(BasePl):
         z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
         self.log(f"~z_norm", z_norm, prog_bar=True)
 
-        loss, reconstruction_loss, penalty_loss_value = self.loss(x, x_hat, z_hat, domain)
+        # compute and log the ratio of the variance of z along the z_dim_invariant_model dimensions to the expectatio
+        # of norm of x
+        z_var = torch.var(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
+        x_norm = torch.norm(x, dim=1).mean()
+        self.log(f"z_var/x_norm", z_var/x_norm, prog_bar=True)
+
+        # do the same with the rest of z dimensions
+        z_var = torch.var(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
+        self.log(f"~z_var/x_norm", z_var/x_norm, prog_bar=True)
+
+        loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domain)
         self.log(f"val_reconstruction_loss", reconstruction_loss.item())
         self.log(f"val_penalty_loss", penalty_loss_value.item())
+        self.log(f"val_hinge_loss", hinge_loss_value.item())
         self.log(f"val_loss", loss.item(), prog_bar=True)
 
         # print the weights of the decoder

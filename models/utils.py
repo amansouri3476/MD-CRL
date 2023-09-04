@@ -81,7 +81,7 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
                 domain_z_maxs[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
             else:
                 domain_z_sorted = domain_z_sorted[:top_k]
-            domain_z_maxs[domain_idx, i, :] = domain_z_sorted
+                domain_z_maxs[domain_idx, i, :] = domain_z_sorted
 
     # compute the pairwise mse of domain_z_mins and add them all together. Same for domain_z_maxs
     mse_mins = 0
@@ -91,17 +91,14 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
             mse_mins += F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
             mse_maxs += F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
 
-    
-    return (mse_mins + mse_maxs)
+    hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args[1:])
+    return (mse_mins + mse_maxs) + hinge_loss_value, hinge_loss_value
 
 def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):
     
-    gamma = args[0]
-    epsilon = args[1]
-    hinge_loss_weight = args[2]
     # domain_z_invariant_stddev is a torch tensor of shape [num_domains, d] containing the standard deviation
     # of the first d dimensions of z for each domain
-    domain_z_invariant_stddev = torch.zeros((num_domains, z_dim_invariant))
+    domain_z_invariant_stddev = torch.zeros((num_domains, z_dim_invariant)).to(z.device)
 
     # z is [batch_size, latent_dim], so is domains. For the first d dimensions
     # of z, find the standard deviation of that dimension in each domain
@@ -116,17 +113,27 @@ def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):
     
     # for each of the d dimensions, compute the pairwise mse of its stddev across domains
     # and add them all together in mse_stddev. mse_stddev is a tensor of size [d]
-    mse_stddev = torch.zeros(z_dim_invariant)
+    mse_stddev = torch.zeros(z_dim_invariant).to(z.device)
     for i in range(z_dim_invariant):
         for j in range(num_domains):
             for k in range(j+1, num_domains):
                 mse_stddev[i] += F.mse_loss(domain_z_invariant_stddev[j, i], domain_z_invariant_stddev[k, i], reduction="mean")
 
+    hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args)
+    return mse_stddev.sum() + hinge_loss_value, hinge_loss_value
+
+
+def hinge_loss(z, domains, num_domains, z_dim_invariant, *args):
+    
+    gamma = args[0]
+    epsilon = args[1]
+    hinge_loss_weight = args[2]
+
     # compute the variance regularization term using the hinge loss along each dimension of z.
     # The hinge loss is 0 if the variance is greater than gamma, and gamma - sqrt(variance + epsilon)
     # otherwise. The variance regularization term is the sum of the hinge losses along each dimension
     # of z
-    variance_reg = torch.zeros(num_domains)
+    variance_reg = torch.zeros(num_domains).to(z.device)
     for domain_idx in range(num_domains):
         domain_mask = (domains == domain_idx).squeeze()
         domain_z = z[domain_mask]
@@ -138,5 +145,4 @@ def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):
         # take its mean over z_dim_invariant dimensions
         variance_reg[domain_idx] = variance_reg[domain_idx] / z_dim_invariant
 
-    # print(f"-----1-----:{mse_stddev.sum()}\n-----2-----:{hinge_loss_weight * variance_reg.sum()}")
-    return mse_stddev.sum() + hinge_loss_weight * variance_reg.sum()
+    return variance_reg.sum() * hinge_loss_weight

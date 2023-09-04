@@ -5,7 +5,7 @@ import hydra
 from omegaconf import OmegaConf
 import wandb
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
-from models.utils import penalty_loss_minmax, penalty_loss_stddev
+from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss
 
 
 class MNISTMDAutoencoderPL(AutoencoderPL):
@@ -19,7 +19,7 @@ class MNISTMDAutoencoderPL(AutoencoderPL):
         
         self.num_domains = self.hparams.num_domains
         self.z_dim_invariant_model = self.hparams.z_dim_invariant
-        self.penalty_weight = 0.
+        self.penalty_weight = self.hparams.penalty_weight
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
         self.penalty_criterion = self.hparams.penalty_criterion
@@ -39,13 +39,13 @@ class MNISTMDAutoencoderPL(AutoencoderPL):
 
         reconstruction_loss = F.mse_loss(recons.permute(0, 2, 3, 1), images.permute(0, 2, 3, 1), reduction="mean")
         if self.penalty_criterion == "minmax":
-            penalty_loss_args = [self.hparams.top_k]
+            penalty_loss_args = [self.hparams.top_k, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
         else:
             penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        penalty_loss_value = self.penalty_loss(z, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+        penalty_loss_value, hinge_loss_value = self.penalty_loss(z, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
         loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
 
-        return loss, reconstruction_loss, penalty_loss_value
+        return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
 
     def on_training_start(self, *args, **kwargs):
         self.log(f"val_reconstruction_loss", 0.0)
@@ -61,9 +61,9 @@ class MNISTMDAutoencoderPL(AutoencoderPL):
         # recons: [batch_size, num_channels, width, height]
         z, recons = self(images)
 
-        loss, reconstruction_loss, penalty_loss_value = self.loss(images, recons, z, domains)
+        loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(images, recons, z, domains)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
-        self.log(f"penalty_loss", penalty_loss_value.item())
+        self.log(f"train_penalty_loss", penalty_loss_value.item())
         self.log(f"train_loss", loss.item())
 
         return loss
@@ -137,9 +137,9 @@ class MNISTMDAutoencoderPL(AutoencoderPL):
         self.log(f"~z_norm", z_norm, prog_bar=True)
 
 
-        loss, reconstruction_loss, penalty_loss_value = self.loss(images, recons, z, domains)
+        loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(images, recons, z, domains)
         self.log(f"val_reconstruction_loss", reconstruction_loss.item())
-        self.log(f"valid_penalty_loss", penalty_loss_value.item())
+        self.log(f"val_penalty_loss", penalty_loss_value.item())
         self.log(f"val_loss", loss.item())
         return {"loss": loss, "pred_z": z}
 
