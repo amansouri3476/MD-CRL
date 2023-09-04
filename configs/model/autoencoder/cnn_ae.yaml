@@ -1,0 +1,133 @@
+_target_: models.modules.cnn_ae.CNNAE
+
+latent_dim: ${model.z_dim}
+width: 28
+height: 28
+num_channels: 3
+
+encoder_cnn:
+  _target_: models.modules.cnn_ae.Encoder
+  latent_dim: ${model.autoencoder.latent_dim}
+  width: ${model.autoencoder.width}
+  height: ${model.autoencoder.height}
+
+  encoder_layers:
+    Conv1:
+      _target_: torch.nn.Conv2d
+      in_channels: ${model.autoencoder.num_channels}
+      out_channels: 4
+      kernel_size: 4
+      stride: 2
+      padding: 1
+      # 14x14x4
+    ReLU1:
+      _target_: torch.nn.ReLU
+    Conv2:
+      _target_: torch.nn.Conv2d
+      in_channels: 4
+      out_channels: 8
+      kernel_size: 4
+      stride: 2
+      padding: 1
+      # 7x7x8
+    ReLU2:
+      _target_: torch.nn.ReLU
+    Conv3:
+      _target_: torch.nn.Conv2d
+      in_channels: 8
+      out_channels: 16
+      kernel_size: 4
+      stride: 2
+      padding: 1
+      # 3x3x16
+    ReLU3:
+      _target_: torch.nn.ReLU
+    Conv4:
+      _target_: torch.nn.Conv2d
+      in_channels: 16
+      out_channels: ${model.autoencoder.latent_dim}
+      kernel_size: 4
+      stride: 2
+      padding: 1
+      # 1x1xz_dim
+    ReLU4:
+      _target_: torch.nn.ReLU
+
+      
+decoder_cnn:
+  _target_: models.modules.cnn_ae.Decoder
+  latent_dim: ${model.autoencoder.latent_dim}
+  width: ${model.autoencoder.width}
+  height: ${model.autoencoder.height}
+  num_channels: ${model.autoencoder.num_channels}
+
+  decoder_layers:
+    Deconv1:
+      _target_: torch.nn.ConvTranspose2d
+      in_channels: ${model.autoencoder.latent_dim}
+      out_channels: 32
+      kernel_size: 4
+      stride: 1
+      padding: 1
+    BN1:
+      _target_: torch.nn.BatchNorm2d
+      num_features: 32
+    ReLU1:
+      _target_: torch.nn.ReLU
+    Deconv2:
+      _target_: torch.nn.ConvTranspose2d
+      in_channels: 32
+      out_channels: 16
+      kernel_size: 4
+      stride: 2
+      padding: 2
+    BN2:
+      _target_: torch.nn.BatchNorm2d
+      num_features: 16
+    ReLU2:
+      _target_: torch.nn.ReLU
+    Deconv3:
+      _target_: torch.nn.ConvTranspose2d
+      in_channels: 16
+      out_channels: 8
+      kernel_size: 4
+      stride: 2
+      padding: 1
+    BN3:
+      _target_: torch.nn.BatchNorm2d
+      num_features: 8
+    ReLU3:
+      _target_: torch.nn.ReLU
+    Deconv4:
+      _target_: torch.nn.ConvTranspose2d
+      in_channels: 8
+      out_channels: 4
+      kernel_size: 4
+      stride: 2
+      padding: 1
+    BN4: 
+      _target_: torch.nn.BatchNorm2d
+      num_features: 4
+    ReLU4:
+      _target_: torch.nn.ReLU
+    Deconv5:
+      _target_: torch.nn.ConvTranspose2d
+      in_channels: 4
+      out_channels: 4
+      kernel_size: 2
+      stride: 2
+      padding: 1
+    BN5:
+      _target_: torch.nn.BatchNorm2d
+      num_features: 4
+    ReLU5:
+      _target_: torch.nn.ReLU
+    Deconv6:
+      _target_: torch.nn.ConvTranspose2d
+      in_channels: 4
+      out_channels: ${model.autoencoder.num_channels}
+      kernel_size: 4
+      stride: 2
+      padding: 1
+    ReLU6:
+      _target_: torch.nn.ReLU

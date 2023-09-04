@@ -15,8 +15,8 @@ class AutoencoderPL(BasePl):
         super().__init__()
         self.save_hyperparameters(logger=False)
         
-        self.model = ResNet18Autoencoder()
-        # self.model = hydra.utils.instantiate(self.hparams.autoencoder, _recursive_=False)
+        # self.model = ResNet18Autoencoder()
+        self.model = hydra.utils.instantiate(self.hparams.autoencoder, _recursive_=False)
         if self.hparams.get("autoencoder_ckpt_path", None) is not None:    
             ckpt_path = self.hparams["autoencoder_ckpt_path"]
             # only load the weights, i.e. HPs should be overwritten from the passed config
