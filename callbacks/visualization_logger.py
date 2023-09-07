@@ -22,6 +22,8 @@ class VisualizationLoggerCallback(Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, unused=0):
         
         if batch_idx % (self.visualize_every+1) == 0:
+
+            renormalize = self.datamodule.train_dataset.dataset.dataset.renormalize()
             
             pl_module.eval()
             with torch.no_grad():
@@ -52,8 +54,9 @@ class VisualizationLoggerCallback(Callback):
                         ax[0,idx].imshow(image, cmap=color_map)
                         ax[1,idx].imshow((recon_ * 255).astype(np.uint8), vmin=0, vmax=255, cmap=color_map)
                     else:
-                        ax[0,idx].imshow(image)
-                        ax[1,idx].imshow(recon_)
+                        ax[0,idx].imshow(self.clamp(renormalize(image)), vmin=0, vmax=1)
+                        ax[1,idx].imshow(self.clamp(renormalize(recon_)), vmin=0, vmax=1)
+                        # ax[0,idx].imshow(recon_)
                         
                     ax[0,idx].set_title('Image')
                     ax[1,idx].set_title('Recon.')

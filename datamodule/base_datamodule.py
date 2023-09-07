@@ -33,7 +33,11 @@ class BaseDataModule(LightningDataModule):
             self.num_samples[split] = self.dataset_parameters[split]["dataset"]["num_samples"]
         
         self.dirname = os.path.dirname(__file__)
+        self.path_to_files = self.hparams["data_dir"]
+        self.save_dataset = self.hparams.save_dataset
+        self.load_dataset = self.hparams.load_dataset
         self.dataset_name = self.hparams.dataset_name
+        self.datamodule_name = self.hparams.datamodule_name
         self.transforms = self.hparams.transforms
         self.augs = self.hparams.transform.get("augs", None)        
 
@@ -61,19 +65,47 @@ class BaseDataModule(LightningDataModule):
         else:
             lengths = [self.num_samples["train"]-self.num_samples["valid"], self.num_samples["valid"]]
 
-        self.train_dataset, self.valid_dataset = torch.utils.data.random_split(
-                            hydra.utils.instantiate(self.dataset_parameters["train"]["dataset"]
-                                                            , transform=transform
-                                                            , augmentations=augmentations
-                                                            )
-                            , lengths=lengths
-                            , generator=torch.Generator().manual_seed(self.seed)
-        )
+        if not self.load_dataset:
+            log.info(f"Generating the data from scratch.")
+            self.train_dataset, self.valid_dataset = torch.utils.data.random_split(
+                                hydra.utils.instantiate(self.dataset_parameters["train"]["dataset"]
+                                                                , transform=transform
+                                                                , augmentations=augmentations
+                                                                )
+                                , lengths=lengths
+                                # , generator=torch.Generator().manual_seed(self.seed)
+            )
 
-        self.test_dataset = hydra.utils.instantiate(self.dataset_parameters["test"]["dataset"]
-                                                            , transform=transform
-                                                            , augmentations=augmentations
-                                                            )
+            self.train_dataset = torch.utils.data.Subset(self.train_dataset, range(100))
+            self.valid_dataset = torch.utils.data.Subset(self.valid_dataset, range(100))
+
+            # # TODO: This way, G is different among splits
+            # self.test_dataset = hydra.utils.instantiate(self.dataset_parameters["test"]["dataset"]
+            #                                                     , transform=transform
+            #                                                     , augmentations=augmentations
+            #                                                     )
+        else:
+            # log the tnime it takes to load the dataset
+            import time
+            start_time = time.perf_counter()
+            log.info(f"Loading the whole dataset files from {self.path_to_files}")
+            self.train_dataset = torch.load(os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{self.num_samples['train']}.pt"))
+            log.info(f"Loading the train dataset files took {time.perf_counter() - start_time} seconds.")
+            start_time = time.perf_counter()
+            self.valid_dataset = torch.load(os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{self.num_samples['valid']}.pt"))
+            log.info(f"Loading the valid dataset files took {time.perf_counter() - start_time} seconds.")
+            # self.test_dataset = torch.load(os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
+
+        if self.save_dataset:
+            if not os.path.exists(self.path_to_files):
+                os.makedirs(self.path_to_files)
+            log.info(f"Saving the whole dataset files to {self.path_to_files}")
+            # torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.dataset_name}_{self.num_samples['train']}.pt"))
+            # torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.dataset_name}_{self.num_samples['valid']}.pt"))
+            # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
+            torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
+            torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
+            # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
 
 
 
@@ -104,19 +136,7 @@ class BaseDataModule(LightningDataModule):
             dataset=self.valid_dataset, **self.dataset_parameters['valid']['dataloader']
         )
 
-    def test_dataloader(self):
-        return DataLoader(
-            dataset=self.test_dataset, **self.dataset_parameters['test']['dataloader']
-        )
-    
-    def renormalize(self):
-        for _, t in self.transforms.items():
-            if "Standardize" in t["_target_"]:
-                """Renormalize from [-1, 1] to [0, 1]."""
-                return lambda x: x / 2.0 + 0.5
-            
-            # TODO: add more options if required
-    
-    
-    
-    
+    # def test_dataloader(self):
+    #     return DataLoader(
+    #         dataset=self.test_dataset, **self.dataset_parameters['test']['dataloader']
+    #     )
