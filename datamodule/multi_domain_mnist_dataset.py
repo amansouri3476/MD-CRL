@@ -138,8 +138,8 @@ class MNISTMultiDomainDataset(MNISTBase):
             # find the mean of all pixel values of all images and their std
             mean = torch.cat([x[0].flatten() for x in new_data_]).mean()
             std = torch.cat([x[0].flatten() for x in new_data_]).std()
-            self.mean = mean
-            self.std = std
+            self.mean = mean.detach().numpy()
+            self.std = std.detach().numpy()
             print(f"mean, std: {mean}, {std}")
             for idx in range(len(new_data)):
                 img, label, domain, color = new_data[idx]
@@ -148,8 +148,8 @@ class MNISTMultiDomainDataset(MNISTBase):
         else:
             min_ = torch.cat([x[0].flatten() for x in new_data_]).min()
             max_ = torch.cat([x[0].flatten() for x in new_data_]).max()
-            self.min_ = min_
-            self.max_ = max_
+            self.min_ = min_.detach().numpy()
+            self.max_ = max_.detach().numpy()
             print(f"min, max: {min_}, {max_}")
             for idx in range(len(new_data)):
                 img, label, domain, color = new_data[idx]
@@ -167,8 +167,9 @@ class MNISTMultiDomainDataset(MNISTBase):
             # to be in the range [0, 1]
             return lambda x: (x * self.std) + self.mean
         else:
-            # return a lambda function that passes the input as the output
-            return lambda x: x
+            # return a lambda function that reverses the minmax normalization
+            # to be in the range [0, 1]
+            return lambda x: (x * (self.max_ - self.min_)) + self.min_
 
 
 def random_split(array, sizes):

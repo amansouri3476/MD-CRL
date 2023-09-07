@@ -86,19 +86,29 @@ class AutoencoderPL(BasePl):
         # we have the set of labels and latents. We want to train a classifier to predict the labels from latents
         # using multinomial logistic regression using sklearn
         # import sklearn
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.metrics import accuracy_score
+        from sklearn.linear_model import LogisticRegression, LinearRegression
+        from sklearn.metrics import accuracy_score, r2_score
         # fit a multinomial logistic regression from z to labels
         clf = LogisticRegression(random_state=0, max_iter=1000).fit(z.detach().cpu().numpy(), labels.detach().cpu().numpy())
         # predict the labels from z
         pred_labels = clf.predict(z.detach().cpu().numpy())
         # compute the accuracy
         accuracy = accuracy_score(labels.detach().cpu().numpy(), pred_labels)
-        self.log(f"val_accuracy", accuracy, prog_bar=True)
+
+        
+        self.log(f"val_digits_accuracy", accuracy, prog_bar=True)
         loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z)
         self.log(f"val_reconstruction_loss", reconstruction_loss.item())
         # self.log(f"valid_penalty_loss", penalty_loss.item())
         self.log(f"val_loss", loss.item())
+        
+        # fit a linear regression from z to colours
+        colors = valid_batch["color"]
+        clf = LinearRegression().fit(z.detach().cpu().numpy(), colors.detach().cpu().numpy())
+        pred_colors = clf.predict(z.detach().cpu().numpy())
+        r2 = r2_score(colors.detach().cpu().numpy(), pred_colors)
+        self.log(f"colors_r2", r2, prog_bar=True)
+
         return {"loss": loss, "pred_z": z}
 
     # def validation_epoch_end(self, validation_step_outputs):

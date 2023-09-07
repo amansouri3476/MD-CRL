@@ -23,7 +23,10 @@ class VisualizationLoggerCallback(Callback):
         
         if batch_idx % (self.visualize_every+1) == 0:
 
-            renormalize = self.datamodule.train_dataset.dataset.dataset.renormalize()
+            try:
+                renormalize = self.datamodule.train_dataset.dataset.renormalize()
+            except:
+                renormalize = self.datamodule.train_dataset.dataset.dataset.renormalize()
             
             pl_module.eval()
             with torch.no_grad():
@@ -45,7 +48,11 @@ class VisualizationLoggerCallback(Callback):
                         color_map = "gray"
                     else:
                         image = images[idx].cpu().numpy() # [width, height, num_channels]
-                        recon_ = self.clamp(recons[idx].cpu().numpy()) # [width, height, num_channels]
+                        recon_ = recons[idx].cpu().numpy() # [width, height, num_channels]
+                        image = self.clamp(renormalize(image))
+                        recon_ = self.clamp(renormalize(recon_))
+                        print(f"image min, max: {image.min()}, {image.max()}")
+                        print(f"recon_ min, max: {recon_.min()}, {recon_.max()}")
                         color_map = None
 
 

@@ -76,14 +76,14 @@ class BaseDataModule(LightningDataModule):
                                 # , generator=torch.Generator().manual_seed(self.seed)
             )
 
-            self.train_dataset = torch.utils.data.Subset(self.train_dataset, range(100))
-            self.valid_dataset = torch.utils.data.Subset(self.valid_dataset, range(100))
+            # self.train_dataset = torch.utils.data.Subset(self.train_dataset, range(100))
+            # self.valid_dataset = torch.utils.data.Subset(self.valid_dataset, range(100))
 
-            # # TODO: This way, G is different among splits
-            # self.test_dataset = hydra.utils.instantiate(self.dataset_parameters["test"]["dataset"]
-            #                                                     , transform=transform
-            #                                                     , augmentations=augmentations
-            #                                                     )
+            # TODO: This way, G is different among splits
+            self.test_dataset = hydra.utils.instantiate(self.dataset_parameters["test"]["dataset"]
+                                                                , transform=transform
+                                                                , augmentations=augmentations
+                                                                )
         else:
             # log the tnime it takes to load the dataset
             import time
@@ -136,7 +136,7 @@ class BaseDataModule(LightningDataModule):
             dataset=self.valid_dataset, **self.dataset_parameters['valid']['dataloader']
         )
 
-    # def test_dataloader(self):
-    #     return DataLoader(
-    #         dataset=self.test_dataset, **self.dataset_parameters['test']['dataloader']
-    #     )
+    def test_dataloader(self):
+        return DataLoader(
+            dataset=self.test_dataset, **self.dataset_parameters['test']['dataloader']
+        )
