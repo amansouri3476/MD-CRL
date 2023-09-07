@@ -1,9 +1,10 @@
 dataset_target: datamodule.multi_domain_mnist_dataset.MNISTMultiDomainDataset
 
-dataset_name: multi_domain_mnist
+dataset_name: multi_domain_mnist_${datamodule.dataset.num_domains}
 num_domains: 2
 domain_lengths: [0.5, 0.5]
 generation_strategy: "auto" # options: auto, manual
+normalization: "z_score" # z_score, min_max
 
 # manual strategy
 domain_color_list: [[0,1], [2,3]]
@@ -24,6 +25,7 @@ dataset_parameters:
       generation_strategy: ${datamodule.dataset.generation_strategy}
       domain_color_list: ${datamodule.dataset.domain_color_list}
       domain_color_probs: ${datamodule.dataset.domain_color_probs}
+      normalization: ${datamodule.dataset.normalization}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -42,6 +44,7 @@ dataset_parameters:
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_color_list: ${datamodule.dataset.domain_color_list}
       domain_color_probs: ${datamodule.dataset.domain_color_probs}
+      normalization: ${datamodule.dataset.normalization}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -60,6 +63,7 @@ dataset_parameters:
       domain_lengths: ${datamodule.dataset.domain_lengths}
       domain_color_list: ${datamodule.dataset.domain_color_list}
       domain_color_probs: ${datamodule.dataset.domain_color_probs}
+      normalization: ${datamodule.dataset.normalization}
       
     dataloader:
       batch_size: ${datamodule.batch_size}

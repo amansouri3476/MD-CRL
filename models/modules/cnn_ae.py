@@ -22,7 +22,7 @@ class Encoder(pl.LightningModule):
         # input `x` or `image` has shape: [batch_size, num_channels, width, height].
         # the output is of dimensions [batch_size, latent_dim]
         return self.layers(x)
-    
+
 
 class Decoder(pl.LightningModule):
     def __init__(self, *args, **kwargs):
@@ -55,10 +55,11 @@ class CNNAE(pl.LightningModule):
 
         self.encoder_cnn = hydra.utils.instantiate(self.hparams.encoder_cnn)
         self.decoder_cnn = hydra.utils.instantiate(self.hparams.decoder_cnn)
-        
+
+
     def forward(self, image):
         # `image` has shape: [batch_size, num_channels, width, height].
         z = self.encoder_cnn(image)
         recons = self.decoder_cnn(z)
-
         return torch.reshape(z, (z.shape[0], -1)), recons
+

@@ -36,6 +36,7 @@ class MNISTMultiDomainDataset(MNISTBase):
         # list of list color indices for each domain
         domain_color_list: Optional[list] = None,
         domain_color_probs: Optional[list] = None,
+        normalization: str = "z_score", # z_score, none
         **kwargs,
     ):
         super(MNISTMultiDomainDataset, self).__init__(transform
@@ -55,6 +56,7 @@ class MNISTMultiDomainDataset(MNISTBase):
         self.domain_lengths = domain_lengths if generation_strategy == "manual" else [1 / num_domains] * num_domains
         self.domain_color_list = domain_color_list
         self.domain_color_probs = domain_color_probs
+        self.normalization = normalization
         self.data = self._generate_data()
 
     def _generate_data(self):
@@ -127,15 +129,46 @@ class MNISTMultiDomainDataset(MNISTBase):
                     bg_pixels = img[:, :, 0] <= 0.3
                     img[digit_pixels, :] = img[digit_pixels, :] * torch.tensor([r[idx], g[idx], b[idx]]).float()
                     img[bg_pixels, :] = torch.tensor([min_value_channel, min_value_channel, min_value_channel]).float()
-                
+
                     new_data[domain_indices_[idx]] = (img.permute(2, 0, 1), label, mapping[domain_indices_[idx]], torch.tensor([r[idx], g[idx], b[idx]]).float())
-                
-        # new_data.append((img, label, mapping[domain_indices_[idx]], color))
+        
+        new_data_ = list(new_data.values())
+        if self.normalization == "z_score":
+            # normalize the img values using the z_score method
+            # find the mean of all pixel values of all images and their std
+            mean = torch.cat([x[0].flatten() for x in new_data_]).mean()
+            std = torch.cat([x[0].flatten() for x in new_data_]).std()
+            self.mean = mean
+            self.std = std
+            print(f"mean, std: {mean}, {std}")
+            for idx in range(len(new_data)):
+                img, label, domain, color = new_data[idx]
+                img = (img - mean) / std
+                new_data[idx] = (img, label, domain, color)
+        else:
+            min_ = torch.cat([x[0].flatten() for x in new_data_]).min()
+            max_ = torch.cat([x[0].flatten() for x in new_data_]).max()
+            self.min_ = min_
+            self.max_ = max_
+            print(f"min, max: {min_}, {max_}")
+            for idx in range(len(new_data)):
+                img, label, domain, color = new_data[idx]
+                img = (img - min_) / (max_ - min_)
+                new_data[idx] = (img, label, domain, color)
 
         return new_data
 
     def __getitem__(self, idx):
         return {"image": self.data[idx][0], "label": self.data[idx][1], "domain": self.data[idx][2], "color": self.data[idx][3]}
+    
+    def renormalize(self):
+        if self.normalization == "z_score":
+            # return a lambda function that re-adjusts the values of the normalized images
+            # to be in the range [0, 1]
+            return lambda x: (x * self.std) + self.mean
+        else:
+            # return a lambda function that passes the input as the output
+            return lambda x: x
 
 
 def random_split(array, sizes):

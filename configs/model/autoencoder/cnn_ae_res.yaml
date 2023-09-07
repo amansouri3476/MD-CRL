@@ -1,4 +1,4 @@
-_target_: models.modules.cnn_ae.CNNAE
+_target_: models.modules.cnn_ae_res.CNNAERes
 
 latent_dim: ${model.z_dim}
 width: 28
@@ -6,7 +6,7 @@ height: 28
 num_channels: 3
 
 encoder_cnn:
-  _target_: models.modules.cnn_ae.Encoder
+  _target_: models.modules.cnn_ae_res.Encoder
   latent_dim: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
   height: ${model.autoencoder.height}
@@ -55,7 +55,7 @@ encoder_cnn:
 
       
 decoder_cnn:
-  _target_: models.modules.cnn_ae.Decoder
+  _target_: models.modules.cnn_ae_res.Decoder
   latent_dim: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
   height: ${model.autoencoder.height}
@@ -110,7 +110,7 @@ decoder_cnn:
       padding: 1
       # 8x14x14 --> 3x28x28
     ReLU4:
-      _target_: torch.nn.Tanh
+      _target_: torch.nn.ReLU
 
 # encoder_cnn:
 #   _target_: models.modules.cnn_ae.Encoder

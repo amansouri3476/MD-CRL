@@ -6,7 +6,7 @@ height: 28
 num_channels: 1
 
 encoder_fc:
-  _target_: models.modules.fc_ae.Encoder
+  _target_: models.modules.fc_ae_image.Encoder
   latent_dim: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
   height: ${model.autoencoder.height}
@@ -58,7 +58,7 @@ encoder_fc:
       _target_: torch.nn.LeakyReLU
 
 decoder_fc:
-  _target_: models.modules.fc_ae.Decoder
+  _target_: models.modules.fc_ae_image.Decoder
   latent_dim: ${model.autoencoder.latent_dim}
   width: ${model.autoencoder.width}
   height: ${model.autoencoder.height}
