@@ -127,7 +127,13 @@ class MNISTMDAutoencoderPL(AutoencoderPL):
         pred_labels = clf.predict(z.detach().cpu().numpy())
         # compute the accuracy
         accuracy = accuracy_score(labels.detach().cpu().numpy(), pred_labels)
-        self.log(f"val_accuracy", accuracy, prog_bar=True)
+        self.log(f"val_digits_accuracy", accuracy, prog_bar=True)
+
+        # fit a linear regression from z to colours
+        clf = LinearRegression().fit(z.detach().cpu().numpy(), colors.detach().cpu().numpy())
+        pred_colors = clf.predict(z.detach().cpu().numpy())
+        r2 = r2_score(colors.detach().cpu().numpy(), pred_colors)
+        self.log(f"val_r2_colors", r2, prog_bar=True)
 
         # comptue the average norm of first z_dim dimensions of z
         z_norm = torch.norm(z[:, :self.z_dim_invariant_model], dim=1).mean()

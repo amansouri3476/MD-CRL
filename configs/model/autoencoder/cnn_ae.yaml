@@ -15,7 +15,7 @@ encoder_cnn:
     Conv1:
       _target_: torch.nn.Conv2d
       in_channels: ${model.autoencoder.num_channels}
-      out_channels: 8
+      out_channels: 16
       kernel_size: 4
       stride: 2
       padding: 1
@@ -24,8 +24,8 @@ encoder_cnn:
       _target_: torch.nn.ReLU
     Conv2:
       _target_: torch.nn.Conv2d
-      in_channels: 8
-      out_channels: 16
+      in_channels: 16
+      out_channels: 32
       kernel_size: 4
       stride: 2
       padding: 1
@@ -34,8 +34,8 @@ encoder_cnn:
       _target_: torch.nn.ReLU
     Conv3:
       _target_: torch.nn.Conv2d
-      in_channels: 16
-      out_channels: 32
+      in_channels: 32
+      out_channels: 64
       kernel_size: 4
       stride: 2
       padding: 1
@@ -44,7 +44,7 @@ encoder_cnn:
       _target_: torch.nn.ReLU
     Conv4:
       _target_: torch.nn.Conv2d
-      in_channels: 32
+      in_channels: 64
       out_channels: ${model.autoencoder.latent_dim}
       kernel_size: 4
       stride: 2
@@ -52,113 +52,6 @@ encoder_cnn:
       # z_dimx1x1
     ReLU4:
       _target_: torch.nn.ReLU
-
-      
-decoder_cnn:
-  _target_: models.modules.cnn_ae.Decoder
-  latent_dim: ${model.autoencoder.latent_dim}
-  width: ${model.autoencoder.width}
-  height: ${model.autoencoder.height}
-  num_channels: ${model.autoencoder.num_channels}
-
-  decoder_layers:
-    Deconv1:
-      _target_: torch.nn.ConvTranspose2d
-      in_channels: ${model.autoencoder.latent_dim}
-      out_channels: 32
-      kernel_size: 5
-      stride: 1
-      padding: 1
-      # 32x1x1 --> 32x3x3
-    BN1:
-      _target_: torch.nn.BatchNorm2d
-      num_features: 32
-    ReLU1:
-      _target_: torch.nn.ReLU
-    Deconv2:
-      _target_: torch.nn.ConvTranspose2d
-      in_channels: 32
-      out_channels: 16
-      kernel_size: 5
-      stride: 2
-      padding: 1
-      # 32x3x3 --> 16x7x7
-    BN2:
-      _target_: torch.nn.BatchNorm2d
-      num_features: 16
-    ReLU2:
-      _target_: torch.nn.ReLU
-    Deconv3:
-      _target_: torch.nn.ConvTranspose2d
-      in_channels: 16
-      out_channels: 8
-      kernel_size: 4
-      stride: 2
-      padding: 1
-      # 16x7x7 --> 8x14x14
-    BN3:
-      _target_: torch.nn.BatchNorm2d
-      num_features: 8
-    ReLU3:
-      _target_: torch.nn.ReLU
-    Deconv4:
-      _target_: torch.nn.ConvTranspose2d
-      in_channels: 8
-      out_channels: ${model.autoencoder.num_channels}
-      kernel_size: 4
-      stride: 2
-      padding: 1
-      # 8x14x14 --> 3x28x28
-    ReLU4:
-      _target_: torch.nn.Tanh
-
-# encoder_cnn:
-#   _target_: models.modules.cnn_ae.Encoder
-#   latent_dim: ${model.autoencoder.latent_dim}
-#   width: ${model.autoencoder.width}
-#   height: ${model.autoencoder.height}
-
-#   encoder_layers:
-#     Conv1:
-#       _target_: torch.nn.Conv2d
-#       in_channels: ${model.autoencoder.num_channels}
-#       out_channels: 4
-#       kernel_size: 4
-#       stride: 2
-#       padding: 1
-#       # 4x14x14
-#     ReLU1:
-#       _target_: torch.nn.ReLU
-#     Conv2:
-#       _target_: torch.nn.Conv2d
-#       in_channels: 4
-#       out_channels: 8
-#       kernel_size: 4
-#       stride: 2
-#       padding: 1
-#       # 8x7x7
-#     ReLU2:
-#       _target_: torch.nn.ReLU
-#     Conv3:
-#       _target_: torch.nn.Conv2d
-#       in_channels: 8
-#       out_channels: 16
-#       kernel_size: 4
-#       stride: 2
-#       padding: 1
-#       # 16x3x3
-#     ReLU3:
-#       _target_: torch.nn.ReLU
-#     Conv4:
-#       _target_: torch.nn.Conv2d
-#       in_channels: 16
-#       out_channels: ${model.autoencoder.latent_dim}
-#       kernel_size: 4
-#       stride: 2
-#       padding: 1
-#       # z_dimx1x1
-#     ReLU4:
-#       _target_: torch.nn.ReLU
 
       
 # decoder_cnn:
@@ -172,75 +65,144 @@ decoder_cnn:
 #     Deconv1:
 #       _target_: torch.nn.ConvTranspose2d
 #       in_channels: ${model.autoencoder.latent_dim}
-#       out_channels: 32
+#       out_channels: ${model.autoencoder.encoder_cnn.encoder_layers.Conv3.out_channels}
 #       kernel_size: 5
 #       stride: 1
 #       padding: 1
-#       # 32x1x1 --> 32x2x2
+#       # 32x1x1 --> 32x3x3
 #     BN1:
 #       _target_: torch.nn.BatchNorm2d
-#       num_features: 32
+#       num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Deconv1.out_channels}
 #     ReLU1:
 #       _target_: torch.nn.ReLU
 #     Deconv2:
 #       _target_: torch.nn.ConvTranspose2d
-#       in_channels: 32
-#       out_channels: 16
-#       kernel_size: 5
-#       stride: 2
+#       in_channels: ${model.autoencoder.decoder_cnn.decoder_layers.Deconv1.out_channels}
+#       out_channels: ${model.autoencoder.encoder_cnn.encoder_layers.Conv2.out_channels}
+#       kernel_size: 7 # checkerboard artifact
+#       stride: 1
 #       padding: 1
-#       # 32x2x2 --> 16x2x2
+#       # 32x3x3 --> 16x7x7
 #     BN2:
 #       _target_: torch.nn.BatchNorm2d
-#       num_features: 16
+#       num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Deconv2.out_channels}
 #     ReLU2:
 #       _target_: torch.nn.ReLU
 #     Deconv3:
 #       _target_: torch.nn.ConvTranspose2d
-#       in_channels: 16
-#       out_channels: 8
+#       in_channels: ${model.autoencoder.decoder_cnn.decoder_layers.Deconv2.out_channels}
+#       out_channels: ${model.autoencoder.encoder_cnn.encoder_layers.Conv1.out_channels}
 #       kernel_size: 4
 #       stride: 2
 #       padding: 1
-#       # 16x2x2 --> 8x4x4
+#       # 16x7x7 --> 8x14x14
 #     BN3:
 #       _target_: torch.nn.BatchNorm2d
-#       num_features: 8
+#       num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Deconv3.out_channels}
 #     ReLU3:
 #       _target_: torch.nn.ReLU
 #     Deconv4:
 #       _target_: torch.nn.ConvTranspose2d
-#       in_channels: 8
-#       out_channels: 4
-#       kernel_size: 4
-#       stride: 2
-#       padding: 1
-#       # 8x4x4 --> 4x8x8
-#     BN4: 
-#       _target_: torch.nn.BatchNorm2d
-#       num_features: 4
-#     ReLU4:
-#       _target_: torch.nn.ReLU
-#     Deconv5:
-#       _target_: torch.nn.ConvTranspose2d
-#       in_channels: 4
-#       out_channels: 4
-#       kernel_size: 2
-#       stride: 2
-#       padding: 1
-#       # 4x8x8 --> 4x14x14
-#     BN5:
-#       _target_: torch.nn.BatchNorm2d
-#       num_features: 4
-#     ReLU5:
-#       _target_: torch.nn.ReLU
-#     Deconv6:
-#       _target_: torch.nn.ConvTranspose2d
-#       in_channels: 4
+#       in_channels: ${model.autoencoder.decoder_cnn.decoder_layers.Deconv3.out_channels}
 #       out_channels: ${model.autoencoder.num_channels}
 #       kernel_size: 4
 #       stride: 2
 #       padding: 1
-#       # 4x14x14 --> 3x28x28
-#     ReLU6:
+#       # 8x14x14 --> 3x28x28
+#     ReLU4:
 #       _target_: torch.nn.ReLU
+decoder_cnn:
+  _target_: models.modules.cnn_ae.Decoder
+  latent_dim: ${model.autoencoder.latent_dim}
+  width: ${model.autoencoder.width}
+  height: ${model.autoencoder.height}
+  num_channels: ${model.autoencoder.num_channels}
+
+  decoder_layers:
+    Upsample1:
+      _target_: torch.nn.Upsample
+      scale_factor: 2  # Upsample factor, adjust as needed
+      mode: bilinear  # Use bilinear interpolation for upsampling
+      align_corners: false  # Set to false to match behavior of most frameworks
+      # in_channelsx1x1 --> in_channelsx2x2
+
+    Conv1:
+      _target_: torch.nn.Conv2d
+      in_channels: ${model.autoencoder.latent_dim}
+      out_channels: ${model.autoencoder.encoder_cnn.encoder_layers.Conv3.out_channels}
+      kernel_size: 2
+      stride: 1
+      padding: 1
+      # in_channelsx2x2 --> out_channelsx3x3
+
+    BN1:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Conv1.out_channels}
+
+    ReLU1:
+      _target_: torch.nn.ReLU
+
+    Upsample2:
+      _target_: torch.nn.Upsample
+      scale_factor: 2  # Upsample factor, adjust as needed
+      mode: bilinear  # Use bilinear interpolation for upsampling
+      align_corners: false  # Set to false to match behavior of most frameworks
+      # in_channelsx3x3 --> in_channelsx6x6
+
+    Conv2:
+      _target_: torch.nn.Conv2d
+      in_channels: ${model.autoencoder.decoder_cnn.decoder_layers.Conv1.out_channels}
+      out_channels: ${model.autoencoder.encoder_cnn.encoder_layers.Conv2.out_channels}
+      kernel_size: 4  # Adjust the kernel size as needed
+      stride: 1
+      padding: 2
+      # in_channelsx6x6 --> out_channelsx7x7
+
+    BN2:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Conv2.out_channels}
+
+    ReLU2:
+      _target_: torch.nn.ReLU
+
+    Upsample3:
+      _target_: torch.nn.Upsample
+      scale_factor: 2  # Upsample factor, adjust as needed
+      mode: bilinear  # Use bilinear interpolation for upsampling
+      align_corners: false  # Set to false to match behavior of most frameworks
+      # in_channelsx7x7 --> in_channelsx14x14
+
+    Conv3:
+      _target_: torch.nn.Conv2d
+      in_channels: ${model.autoencoder.decoder_cnn.decoder_layers.Conv2.out_channels}
+      out_channels: ${model.autoencoder.encoder_cnn.encoder_layers.Conv1.out_channels}
+      kernel_size: 3
+      stride: 1
+      padding: 1
+      # in_channelsx14x14 --> out_channelsx14x14
+
+    BN3:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Conv3.out_channels}
+
+    ReLU3:
+      _target_: torch.nn.ReLU
+
+    Upsample4:
+      _target_: torch.nn.Upsample
+      scale_factor: 2  # Upsample factor, adjust as needed
+      mode: bilinear  # Use bilinear interpolation for upsampling
+      align_corners: false  # Set to false to match behavior of most frameworks
+      # in_channelsx14x14 --> in_channelsx28x28
+
+    Conv4:
+      _target_: torch.nn.Conv2d
+      in_channels: ${model.autoencoder.decoder_cnn.decoder_layers.Conv3.out_channels}
+      out_channels: ${model.autoencoder.num_channels}
+      kernel_size: 3
+      stride: 1
+      padding: 1
+      # in_channelsx28x28 --> out_channelsx28x28
+
+    ReLU4:
+      _target_: torch.nn.ReLU
