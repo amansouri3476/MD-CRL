@@ -9,7 +9,9 @@ datamodule_name: ${datamodule.dataset.dataset_name}
 save_dataset: True
 load_dataset: False
 data_dir: "/home/mila/s/sayed.mansouri-tehrani/scratch/coloured_mnist/"
+data_dir_narval: "~/scratch/coloured_mnist/"
 path: "/network/datasets/torchvision"
+path_narval: "/home/aminm/scratch/"
 
 seed: ${seed}
 

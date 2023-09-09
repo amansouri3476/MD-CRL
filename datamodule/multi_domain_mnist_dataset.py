@@ -30,6 +30,7 @@ class MNISTMultiDomainDataset(MNISTBase):
         transform: Optional[Callable] = None, # type: ignore
         num_samples: int = 20000,
         path: str = "/network/datasets/torchvision",
+        path_narval: str = "/home/aminm/scratch/",
         num_domains: int = 2,
         domain_lengths: Optional[list] = None,
         generation_strategy: str = "auto",
@@ -51,6 +52,7 @@ class MNISTMultiDomainDataset(MNISTBase):
         self.transform = transform
         self.generation_strategy = generation_strategy
         self.path = path
+        self.path_narval = path_narval
         self.split = kwargs.get("split", "train")
         self.num_domains = num_domains
         self.domain_lengths = domain_lengths if generation_strategy == "manual" else [1 / num_domains] * num_domains
@@ -62,9 +64,15 @@ class MNISTMultiDomainDataset(MNISTBase):
     def _generate_data(self):
         new_data = {}
         if self.split == "train":
-            data = torchvision.datasets.MNIST(self.path, True, transform=self.transform)
+            try:
+                data = torchvision.datasets.MNIST(self.path, True, transform=self.transform)
+            except:
+                data = torchvision.datasets.MNIST(self.path_narval, True, transform=self.transform)
         else:
-            data = torchvision.datasets.MNIST(self.path, False, transform=self.transform)
+            try:
+                data = torchvision.datasets.MNIST(self.path, False, transform=self.transform)
+            except:
+                data = torchvision.datasets.MNIST(self.path_narval, False, transform=self.transform)
 
         min_value_channel = data[0][0].min()
         # create the new data by extending each image with two more color channels
