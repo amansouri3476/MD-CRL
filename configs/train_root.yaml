@@ -40,6 +40,8 @@ work_dir: ${hydra:runtime.cwd}
 # state dict only, use the respective ckpt config of each model and set this argument to null.
 ckpt_path: ???
 
+run_path: null
+
 run_name: ${model.logging_name} # Will be used for logging
 
 # pretty print config at the start of the run using Rich library

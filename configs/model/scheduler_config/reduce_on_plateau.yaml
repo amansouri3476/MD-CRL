@@ -6,7 +6,7 @@ scheduler:
     threshold: 0.001
     threshold_mode: 'abs'
     cooldown: 10
-    min_lr: 1e-6
+    min_lr: 1e-4
     eps: 1e-8
     verbose: True
     

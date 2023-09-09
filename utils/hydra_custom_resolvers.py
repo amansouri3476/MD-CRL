@@ -92,6 +92,32 @@ def retrieve_encoder_state_dict_from_full_ckpt(path):
 
     return f"state_dict_{save_path_appendix}.pth"
 
+def retrieve_num_domains(path):
+    if path is None:
+        return
+    # inside the path directory, there should be a file called config_tree.txt
+    # this file contains the config tree of the job that was run
+    # we can use this to retrieve the number of domains the pattern is like
+    # num_domains: 8
+    with open(os.path.join(path, "config_tree.txt"), "r") as f:
+        config_tree = f.readlines()
+    num_domains = [line.split(":")[1].strip() for line in config_tree if "num_domains" in line][0]
+    return int(num_domains)
+
+def retrieve_x_dim(path):
+    # x_dim is the dimension of the encoded image which will be
+    # called z_dim by the mlp autoencoder
+    if path is None:
+        return
+    # inside the path directory, there should be a file called config_tree.txt
+    # this file contains the config tree of the job that was run
+    # we can use this to retrieve the number of domains the pattern is like
+    # z_dim: 256
+    with open(os.path.join(path, "config_tree.txt"), "r") as f:
+        config_tree = f.readlines()
+    x_dim = [line.split(":")[1].strip() for line in config_tree if "z_dim" in line][0]
+    return int(x_dim)
+
 OmegaConf.register_new_resolver("add", add_args)
 OmegaConf.register_new_resolver("mult", multiply_args)
 
@@ -109,3 +135,7 @@ OmegaConf.register_new_resolver("run_name_ckpt", run_name_ckpt_path)
 OmegaConf.register_new_resolver("path_to_best_ckpt", best_ckpt_path_retrieve)
 
 OmegaConf.register_new_resolver("retrieve_encoder_state_dict", retrieve_encoder_state_dict_from_full_ckpt)
+
+OmegaConf.register_new_resolver("retrieve_num_domain", retrieve_num_domains)
+
+OmegaConf.register_new_resolver("retrieve_x_dimension", retrieve_x_dim)
