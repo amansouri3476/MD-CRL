@@ -4,7 +4,10 @@ from .base_pl import BasePl
 import hydra
 from omegaconf import OmegaConf
 import wandb
+import os
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
+import utils.general as utils
+log = utils.get_logger(__name__)
 
 
 class AutoencoderPL(BasePl):
@@ -45,6 +48,9 @@ class AutoencoderPL(BasePl):
               # initially freeze it for some time, but then decide to let it finetune.
             for param in self.model.parameters():
                 param.requires_grad = True
+        
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
 
 
     def forward(self, x):
@@ -71,6 +77,8 @@ class AutoencoderPL(BasePl):
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         # self.log(f"penalty_loss", penalty_loss.item())
         self.log(f"train_loss", loss.item())
+
+        self.training_step_outputs.append({"z":z, "label":labels, "domain": train_batch["domain"], "color": train_batch["color"]})
 
         return loss
 
@@ -109,72 +117,64 @@ class AutoencoderPL(BasePl):
         r2 = r2_score(colors.detach().cpu().numpy(), pred_colors)
         self.log(f"colors_r2", r2, prog_bar=True)
 
+        self.validation_step_outputs.append({"z":z, "label":labels, "domain": valid_batch["domain"], "color": valid_batch["color"]})
+
         return {"loss": loss, "pred_z": z}
 
-    # def validation_epoch_end(self, validation_step_outputs):
-    #     z_disentanglement = [v["true_z"] for v in validation_step_outputs]
-    #     h_z_disentanglement = [v["pred_z"] for v in validation_step_outputs]
-    #     z_disentanglement = torch.cat(z_disentanglement, 0)
-    #     h_z_disentanglement = torch.cat(h_z_disentanglement, 0)
-        
-    #     (linear_disentanglement_score, _), _ = linear_disentanglement(
-    #         z_disentanglement, h_z_disentanglement, mode="r2", train_test_split=True
-    #     )
+    def on_train_epoch_end(self):
 
-    #     (permutation_disentanglement_score, _), _ = permutation_disentanglement(
-    #         z_disentanglement,
-    #         h_z_disentanglement,
-    #         mode="pearson",
-    #         solver="munkres",
-    #         rescaling=True,
-    #     )
-    #     mse = F.mse_loss(z_disentanglement, h_z_disentanglement).mean(0)
-    #     self.log("Linear_Disentanglement", linear_disentanglement_score, prog_bar=True)
-    #     self.log(
-    #         "Permutation_Disentanglement",
-    #         permutation_disentanglement_score,
-    #         prog_bar=True,
-    #     )
-    #     self.log("MSE", mse, prog_bar=True)
-    #     wandb.log(
-    #         {
-    #             "mse": mse,
-    #             "Permutation Disentanglement": permutation_disentanglement_score,
-    #             "Linear Disentanglement": linear_disentanglement_score,
-    #         }
-    #     )
+        # at the end of each validation epoch, we want to pass the whole dataset through the model
+        # and save the outputs of the encoder as a new dataset
+        # we also want to save the labels, domains, and colours
+        # of the dataset.
         
-    # def test_epoch_end(self, test_step_outputs):
-    #     z_disentanglement = [v["true_z"] for v in test_step_outputs]
-    #     h_z_disentanglement = [v["pred_z"] for v in test_step_outputs]
-    #     z_disentanglement = torch.cat(z_disentanglement, 0)
-    #     h_z_disentanglement = torch.cat(h_z_disentanglement, 0)
-    #     (linear_disentanglement_score, _), _ = linear_disentanglement(
-    #         z_disentanglement, h_z_disentanglement, mode="r2", train_test_split=True
-    #     )
+        # instantiate the new data with the same keys as the original dataset with zeros tensors
+        new_data = dict.fromkeys(["z", "label", "domain", "color"])
+        key_dims = {"z": self.hparams.z_dim, "label": 1, "domain": 1, "color": 3}
+        for key in new_data.keys():
+            new_data[key] = torch.zeros((len(self.trainer.datamodule.train_dataset), key_dims[key]))
+        
+        for batch_idx, training_step_output in enumerate(self.training_step_outputs):
+            # save the outputs of the encoder as a new dataset
+            training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
+            start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
+            end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
+            for key, val in zip(training_step_output.keys(), training_step_output.values()):
+                try:
+                    new_data[key][start:end] = val.detach().cpu()
+                except:
+                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+        # save the new dataset as a pt file in hydra run dir or working directory
+        log.info(f"Saving the encoded training dataset of length {len(new_data['z'])} at: {os.getcwd()}")
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_train.pt"))
+        self.training_step_outputs.clear()
 
-    #     (permutation_disentanglement_score, _), _ = permutation_disentanglement(
-    #         z_disentanglement,
-    #         h_z_disentanglement,
-    #         mode="pearson",
-    #         solver="munkres",
-    #         rescaling=True,
-    #     )
-    #     mse = F.mse_loss(z_disentanglement, h_z_disentanglement).mean(0)
-    #     self.log("Linear_Disentanglement", linear_disentanglement_score, prog_bar=True)
-    #     self.log(
-    #         "Permutation Disentanglement",
-    #         permutation_disentanglement_score,
-    #         prog_bar=True,
-    #     )
-    #     self.log("MSE", mse, prog_bar=True)
-    #     wandb.log(
-    #         {
-    #             "mse": mse,
-    #             "Permutation Disentanglement": permutation_disentanglement_score,
-    #             "Linear_Disentanglement": linear_disentanglement_score,
-    #         }
-    #     )
+        return
+    
+    def on_validation_epoch_end(self):
+        
+        # instantiate the new data with the same keys as the original dataset with zeros tensors
+        new_data = dict.fromkeys(["z", "label", "domain", "color"])
+        key_dims = {"z": self.hparams.z_dim, "label": 1, "domain": 1, "color": 3}
+        for key in new_data.keys():
+            new_data[key] = torch.zeros((len(self.trainer.datamodule.valid_dataset), key_dims[key]))
+        
+        for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
+            # save the outputs of the encoder as a new dataset
+            validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
+            start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
+            end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
+            for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
+                try:
+                    new_data[key][start:end] = val.detach().cpu()
+                except:
+                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+        # save the new dataset as a pt file in hydra run dir or working directory
+        log.info(f"Saving the encoded validation dataset of length {len(new_data['z'])} at: {os.getcwd()}")
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_valid.pt"))
+        self.validation_step_outputs.clear()
+
+        return
 
 
 import torch.nn as nn

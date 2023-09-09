@@ -75,7 +75,7 @@ class BaseDataModule(LightningDataModule):
                                 , lengths=lengths
                                 # , generator=torch.Generator().manual_seed(self.seed)
             )
-
+            log.info(f"------------------------------\n---------------------------\ntrain_dataset size: {len(self.train_dataset)}\nvalid_dataset size: {len(self.valid_dataset)}\n---------------------------\n---------------------------")
             # self.train_dataset = torch.utils.data.Subset(self.train_dataset, range(100))
             # self.valid_dataset = torch.utils.data.Subset(self.valid_dataset, range(100))
 

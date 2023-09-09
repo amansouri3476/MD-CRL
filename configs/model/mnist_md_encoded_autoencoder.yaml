@@ -1,15 +1,15 @@
-_target_: models.mnist_md_autoencoder_pl.MNISTMDAutoencoderPL
+_target_: models.mnist_md_encoded_autoencoder_pl.MNISTMDEncodedAutoencoderPL
 
 defaults:
   - scheduler_config: null # options: reduce_on_plateau, linear, polynomial
-  - optimizer: adamw # options: adamw, adam
-  - autoencoder: cnn_ae # options:
+  - optimizer: adam # options: adamw, adam
+  - autoencoder: mlp_ae_mnist # options:
   - additional_logger: null # reconstruction_logger
 
 
-top_k: 5
-num_domains: ${datamodule.dataset.num_domains}
-z_dim: 32
+top_k: 10
+num_domains: ${datamodule.num_domains}
+z_dim: 64
 z_dim_invariant_fraction: 0.5
 z_dim_invariant: ${mult_int:${model.z_dim},${model.z_dim_invariant_fraction}}
 # z_dim_invariant: ${floor_div:${model.z_dim},2}
@@ -32,4 +32,4 @@ autoencoder_ckpt_path: ${retrieve_encoder_state_dict:${model.pl_model_ckpt_path}
 autoencoder_freeze: False
 
 
-logging_name: "autoencoder_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}"
+logging_name: "autoencoder_encoded_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}"

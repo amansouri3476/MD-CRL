@@ -1,10 +1,10 @@
-_target_: models.modules.fc_ae_synthetic.FCAE
+_target_: models.modules.mlp_ae.FCAE
 
 activation: torch.nn.ReLU # torch.nn.ReLU, torch.nn.LeakyReLU, torch.nn.Sigmoid, torch.nn.Tanh
-latent_dim: ${model.z_dim_invariant}
+latent_dim: ${model.z_dim}
 
 encoder_fc:
-  _target_: models.modules.fc_ae_synthetic.Encoder
+  _target_: models.modules.mlp_ae.Encoder
 
   encoder_layers:
     Linear1:
@@ -26,7 +26,7 @@ encoder_fc:
 
     
 decoder_fc:
-  _target_: models.modules.fc_ae_synthetic.Decoder
+  _target_: models.modules.mlp_ae.Decoder
 
   decoder_layers:
     Linear1:

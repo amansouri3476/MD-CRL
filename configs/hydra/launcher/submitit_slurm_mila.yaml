@@ -3,7 +3,7 @@ submitit_folder: ${hydra.sweep.dir}/.submitit/%j
 timeout_min: 180 # 24 hrs
 cpus_per_task: 4
 gpus_per_node: null
-gres: gpu:1
+# gres: gpu:1
 tasks_per_node: 1
 mem_gb: 10
 nodes: 1
