@@ -33,10 +33,10 @@ class BaseDataModule(LightningDataModule):
             self.num_samples[split] = self.dataset_parameters[split]["dataset"]["num_samples"]
         
         self.dirname = os.path.dirname(__file__)
-        self.path_to_files = self.hparams["data_dir"]
-        self.path_to_files_narval = self.hparams["data_dir_narval"]
-        self.save_dataset = self.hparams.save_dataset
-        self.load_dataset = self.hparams.load_dataset
+        self.path_to_files = self.hparams.get("data_dir", None)
+        self.path_to_files_narval = self.hparams.get("data_dir_narval", None)
+        self.save_dataset = self.hparams.get("save_dataset", False)
+        self.load_dataset = self.hparams.get("load_dataset", False)
         self.dataset_name = self.hparams.dataset_name
         self.datamodule_name = self.hparams.datamodule_name
         self.transforms = self.hparams.transforms
