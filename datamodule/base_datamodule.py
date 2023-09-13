@@ -33,9 +33,10 @@ class BaseDataModule(LightningDataModule):
             self.num_samples[split] = self.dataset_parameters[split]["dataset"]["num_samples"]
         
         self.dirname = os.path.dirname(__file__)
-        self.path_to_files = self.hparams["data_dir"]
-        self.save_dataset = self.hparams.save_dataset
-        self.load_dataset = self.hparams.load_dataset
+        self.path_to_files = self.hparams.get("data_dir", None)
+        self.path_to_files_narval = self.hparams.get("data_dir_narval", None)
+        self.save_dataset = self.hparams.get("save_dataset", False)
+        self.load_dataset = self.hparams.get("load_dataset", False)
         self.dataset_name = self.hparams.dataset_name
         self.datamodule_name = self.hparams.datamodule_name
         self.transforms = self.hparams.transforms
@@ -61,7 +62,7 @@ class BaseDataModule(LightningDataModule):
             transform = []
         
         if self.num_samples["train"] < 1:
-            lengths = [self.num_samples["train"], self.num_samples["valid"]]
+            lengths = [int(self.num_samples["train"] * 60000), int(self.num_samples["valid"] * 60000)]
         else:
             lengths = [self.num_samples["train"]-self.num_samples["valid"], self.num_samples["valid"]]
 
@@ -73,7 +74,7 @@ class BaseDataModule(LightningDataModule):
                                                                 , augmentations=augmentations
                                                                 )
                                 , lengths=lengths
-                                # , generator=torch.Generator().manual_seed(self.seed)
+                                , generator=torch.Generator().manual_seed(self.seed)
             )
             log.info(f"\n---------------------------\n---------------------------\ntrain_dataset size: {len(self.train_dataset)}\nvalid_dataset size: {len(self.valid_dataset)}\n---------------------------\n---------------------------")
             # self.train_dataset = torch.utils.data.Subset(self.train_dataset, range(100))
@@ -97,15 +98,27 @@ class BaseDataModule(LightningDataModule):
             # self.test_dataset = torch.load(os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
 
         if self.save_dataset:
-            if not os.path.exists(self.path_to_files):
-                os.makedirs(self.path_to_files)
-            log.info(f"Saving the whole dataset files to {self.path_to_files}")
-            # torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.dataset_name}_{self.num_samples['train']}.pt"))
-            # torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.dataset_name}_{self.num_samples['valid']}.pt"))
-            # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
-            torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
-            torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
-            # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
+            try:
+                if not os.path.exists(self.path_to_files):
+                    os.makedirs(self.path_to_files)
+                log.info(f"Saving the whole dataset files to {self.path_to_files}")
+                # torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.dataset_name}_{self.num_samples['train']}.pt"))
+                # torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.dataset_name}_{self.num_samples['valid']}.pt"))
+                # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
+                torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
+                torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
+                # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
+            except:
+                if not os.path.exists(self.path_to_files_narval):
+                    os.makedirs(self.path_to_files_narval)
+                log.info(f"Saving the whole dataset files to {self.path_to_files_narval}")
+                # torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.dataset_name}_{self.num_samples['train']}.pt"))
+                # torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.dataset_name}_{self.num_samples['valid']}.pt"))
+                # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
+                torch.save(self.train_dataset, os.path.join(self.path_to_files_narval, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
+                torch.save(self.valid_dataset, os.path.join(self.path_to_files_narval, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
+                # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
+
 
 
 

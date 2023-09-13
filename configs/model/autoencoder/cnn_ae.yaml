@@ -4,6 +4,7 @@ latent_dim: ${model.z_dim}
 width: 28
 height: 28
 num_channels: 3
+upsampling_interpolation: nearest # options: nearest, bilinear, bicubic, trilinear
 
 encoder_cnn:
   _target_: models.modules.cnn_ae.Encoder
@@ -122,7 +123,7 @@ decoder_cnn:
     Upsample1:
       _target_: torch.nn.Upsample
       scale_factor: 2  # Upsample factor, adjust as needed
-      mode: nearest  # bilinear, trilinear, nearest
+      mode: ${model.autoencoder.upsampling_interpolation}  # Use nearest/bilinear/etc. interpolation for upsampling
       # align_corners: false  # Set to false to match behavior of most frameworks
       # in_channelsx1x1 --> in_channelsx2x2
 
@@ -145,7 +146,7 @@ decoder_cnn:
     Upsample2:
       _target_: torch.nn.Upsample
       scale_factor: 2  # Upsample factor, adjust as needed
-      mode: nearest  # bilinear, trilinear, nearest
+      mode: ${model.autoencoder.upsampling_interpolation}  # Use nearest/bilinear/etc. interpolation for upsampling
       # align_corners: false  # Set to false to match behavior of most frameworks
       # in_channelsx3x3 --> in_channelsx6x6
 
@@ -168,7 +169,7 @@ decoder_cnn:
     Upsample3:
       _target_: torch.nn.Upsample
       scale_factor: 2  # Upsample factor, adjust as needed
-      mode: nearest  # bilinear, trilinear, nearest
+      mode: ${model.autoencoder.upsampling_interpolation}  # Use nearest/bilinear/etc. interpolation for upsampling
       # align_corners: false  # Set to false to match behavior of most frameworks
       # in_channelsx7x7 --> in_channelsx14x14
 
@@ -191,7 +192,7 @@ decoder_cnn:
     Upsample4:
       _target_: torch.nn.Upsample
       scale_factor: 2  # Upsample factor, adjust as needed
-      mode: nearest  # bilinear, trilinear, nearest
+      mode: ${model.autoencoder.upsampling_interpolation}  # Use nearest/bilinear/etc. interpolation for upsampling
       # align_corners: false  # Set to false to match behavior of most frameworks
       # in_channelsx14x14 --> in_channelsx28x28
 
