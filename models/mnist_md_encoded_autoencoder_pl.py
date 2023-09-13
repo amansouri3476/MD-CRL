@@ -107,6 +107,7 @@ class MNISTMDEncodedAutoencoderPL(AutoencoderPL):
             accuracy = accuracy_score(colors.detach().cpu().numpy(), pred_colors)
             self.log(f"colors_accuracy_z", accuracy, prog_bar=True)
         else: # colors are triplets of rgb, there we need to measure r2 score of linear regression
+            print(z_hat.mean())
             clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), colors.detach().cpu().numpy())
             pred_colors = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
             r2 = r2_score(colors.detach().cpu().numpy(), pred_colors)

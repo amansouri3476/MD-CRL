@@ -47,8 +47,8 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         self.num_domains = num_domains
         self.domain_lengths = domain_lengths if generation_strategy == "manual" else [1 / num_domains] * num_domains
         self.domain_dist_ranges = domain_dist_ranges
-        self.domain_dist_ranges_pos = domain_dist_ranges_pos
-        self.domain_dist_ranges_neg = domain_dist_ranges_neg
+        # self.domain_dist_ranges_pos = domain_dist_ranges_pos
+        # self.domain_dist_ranges_neg = domain_dist_ranges_neg
         self.invariant_dist_params = invariant_dist_params
         self.mixing_architecture_config = kwargs["mixing_architecture"]
         self.non_linearity = kwargs["non_linearity"]
@@ -89,23 +89,28 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
             for dim_idx in range(self.z_dim_spurious):
                 for domain_idx in range(self.num_domains):
                     # toss a fair coin to decide whether this dimension is positive or negative
-                    coin = random.randint(0, 1)
-                    if coin == 0:
-                        # sample low and high of the domain distribution from the range
-                        # specified in negative domain distribution. Make sure low < high
-                        low = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
-                        high = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
-                        while low > high:
-                            low = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
-                            high = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
-                    else:
-                        # sample low and high of the domain distribution from the range
-                        # specified in positive domain distribution. Make sure low < high
-                        low = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
-                        high = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
-                        while low > high:
-                            low = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
-                            high = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                    # coin = random.randint(0, 1)
+                    # if coin == 0:
+                    #     # sample low and high of the domain distribution from the range
+                    #     # specified in negative domain distribution. Make sure low < high
+                    #     low = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                    #     high = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                    #     while low > high:
+                    #         low = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                    #         high = random.random() * (self.domain_dist_ranges_neg[1] - self.domain_dist_ranges_neg[0]) + self.domain_dist_ranges_neg[0]
+                    # else:
+                    #     # sample low and high of the domain distribution from the range
+                    #     # specified in positive domain distribution. Make sure low < high
+                    #     low = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                    #     high = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                    #     while low > high:
+                    #         low = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                    #         high = random.random() * (self.domain_dist_ranges_pos[1] - self.domain_dist_ranges_pos[0]) + self.domain_dist_ranges_pos[0]
+                    low = random.random() * (self.domain_dist_ranges[1] - self.domain_dist_ranges[0]) + self.domain_dist_ranges[0]
+                    high = random.random() * (self.domain_dist_ranges[1] - self.domain_dist_ranges[0]) + self.domain_dist_ranges[0]
+                    while low > high:
+                        low = random.random() * (self.domain_dist_ranges[1] - self.domain_dist_ranges[0]) + self.domain_dist_ranges[0]
+                        high = random.random() * (self.domain_dist_ranges[1] - self.domain_dist_ranges[0]) + self.domain_dist_ranges[0]
                     
                     # sample from uniform [low, high] for each domain
                     domain_size = int(self.domain_lengths[domain_idx] * self.num_samples)

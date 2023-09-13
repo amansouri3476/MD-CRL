@@ -4,7 +4,7 @@ import hydra
 import os
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Callback, LightningDataModule, LightningModule, Trainer, seed_everything
-from pytorch_lightning.loggers import LightningLoggerBase
+# from pytorch_lightning.loggers import LightningLoggerBase
 
 import utils.general as utils
 
@@ -41,7 +41,7 @@ def train(config: DictConfig) -> Optional[float]:
                 callbacks.append(hydra.utils.instantiate(cb_conf))
 
     # Init LIT loggers
-    logger: List[LightningLoggerBase] = []
+    logger = []
     if "logger" in config:
         for _, lg_conf in config.logger.items():
             if "_target_" in lg_conf:

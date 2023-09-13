@@ -119,7 +119,7 @@ def log_hyperparameters(
     datamodule: pl.LightningDataModule,
     trainer: pl.Trainer,
     callbacks: List[pl.Callback],
-    logger: List[pl.loggers.LightningLoggerBase],
+    logger,
 ) -> None:
     """This method controls which parameters from Hydra configs are saved by Lightning loggers.
     Additionally saves:
@@ -158,7 +158,7 @@ def finish(
     datamodule: pl.LightningDataModule,
     trainer: pl.Trainer,
     callbacks: List[pl.Callback],
-    logger: List[pl.loggers.LightningLoggerBase],
+    logger,
 ) -> None:
     """Makes sure everything closed properly."""
 
