@@ -10,9 +10,10 @@ defaults:
 top_k: 5
 num_domains: ${datamodule.dataset.num_domains}
 mismatch_dims: 0
-z_dim: ${add_int:${datamodule.dataset.z_dim},${model.mismatch_dims}}
+z_dim: ${add_int:${datamodule.dataset.z_dim},${mult_int:${model.mismatch_dims},2}}
 z_dim_invariant: ${add_int:${datamodule.dataset.z_dim_invariant},${model.mismatch_dims}} # make sure it is smaller than encoder's latent_dim
 penalty_criterion: "minmax" # options: minmax, stddev
+loss_transform: "l1"
 penalty_weight: 0.01
 stddev_threshold: 1.0
 stddev_eps: 0.0001

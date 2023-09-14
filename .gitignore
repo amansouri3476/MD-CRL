@@ -18,3 +18,5 @@ settings.json
 **/*.pth
 **/*.pdf
 **/.vscode
+best_ckpt_path.txt
+config_tree.txt

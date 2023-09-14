@@ -43,6 +43,7 @@ from torch.nn import functional as F
 def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
 
     top_k = args[0]
+    loss_transform = args[1]
     # domain_z_mins is a torch tensor of shape [num_domains, d, top_k] containing the top_k smallest
     # values of the first d dimensions of z for each domain
     # domain_z_maxs is a torch tensor of shape [num_domains, d, top_k] containing the top_k largest
@@ -86,12 +87,34 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
     # compute the pairwise mse of domain_z_mins and add them all together. Same for domain_z_maxs
     mse_mins = 0
     mse_maxs = 0
-    for i in range(num_domains):
-        for j in range(i+1, num_domains):
-            mse_mins += F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
-            mse_maxs += F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
+    if loss_transform == "mse":
+        for i in range(num_domains):
+            for j in range(i+1, num_domains):
+                mse_mins += F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
+                mse_maxs += F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
+    elif loss_transform == "l1":
+        for i in range(num_domains):
+            for j in range(i+1, num_domains):
+                mse_mins += F.l1_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
+                mse_maxs += F.l1_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
+    elif loss_transform == "log_mse":
+        for i in range(num_domains):
+            for j in range(i+1, num_domains):
+                # mse_mins += F.mse_loss(torch.log(domain_z_mins[i]), torch.log(domain_z_mins[j]), reduction="mean")
+                # mse_maxs += F.mse_loss(torch.log(domain_z_maxs[i]), torch.log(domain_z_maxs[j]), reduction="mean")
+                # mse_mins += torch.log(F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="none")).mean()
+                # mse_maxs += torch.log(F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="none")).mean()
+                mse_mins += torch.log((domain_z_mins[i] - domain_z_mins[j])**2).mean()
+                mse_maxs += torch.log((domain_z_maxs[i] - domain_z_maxs[j])**2).mean()
+    elif loss_transform == "log_l1":
+        for i in range(num_domains):
+            for j in range(i+1, num_domains):
+                # mse_mins += F.l1_loss(torch.log(domain_z_mins[i]), torch.log(domain_z_mins[j]), reduction="mean")
+                # mse_maxs += F.l1_loss(torch.log(domain_z_maxs[i]), torch.log(domain_z_maxs[j]), reduction="mean")
+                mse_mins += torch.log(F.l1_loss(domain_z_mins[i], domain_z_mins[j], reduction="none")).mean()
+                mse_maxs += torch.log(F.l1_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="none")).mean()
 
-    hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args[1:])
+    hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args[2:])
     return (mse_mins + mse_maxs) + hinge_loss_value, hinge_loss_value
 
 def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):

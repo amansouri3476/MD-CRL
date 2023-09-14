@@ -28,6 +28,7 @@ class MNISTMDEncodedAutoencoderPL(AutoencoderPL):
         self.penalty_criterion = self.hparams.penalty_criterion
         if self.penalty_criterion == "minmax":
             self.penalty_loss = penalty_loss_minmax
+            self.loss_transform = self.hparams.loss_transform
         elif self.penalty_criterion == "stddev":
             self.penalty_loss = penalty_loss_stddev
         else:
@@ -42,7 +43,7 @@ class MNISTMDEncodedAutoencoderPL(AutoencoderPL):
 
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
         if self.penalty_criterion == "minmax":
-            penalty_loss_args = [self.hparams.top_k, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
+            penalty_loss_args = [self.hparams.top_k, self.loss_transform, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
         else:
             penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
         penalty_loss_value, hinge_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)

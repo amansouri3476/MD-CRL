@@ -7,13 +7,13 @@ encoder_fc:
   _target_: models.modules.mlp_ae.Encoder
 
   encoder_layers:
-    Linear1:
-      _target_: torch.nn.Linear
-      in_features: ${datamodule.x_dim}
-      out_features: ${datamodule.x_dim}
-      bias: True
-    ReLU1:
-      _target_: ${model.autoencoder.activation}
+    # Linear1:
+    #   _target_: torch.nn.Linear
+    #   in_features: ${datamodule.x_dim}
+    #   out_features: ${datamodule.x_dim}
+    #   bias: True
+    # ReLU1:
+    #   _target_: ${model.autoencoder.activation}
     # Linear2:
     #   _target_: torch.nn.Linear
     #   in_features: ${datamodule.x_dim}
@@ -26,19 +26,21 @@ encoder_fc:
       in_features: ${datamodule.x_dim}
       out_features: ${model.autoencoder.latent_dim}
       bias: True
+    ReLU3:
+      _target_: ${model.autoencoder.activation}
 
     
 decoder_fc:
   _target_: models.modules.mlp_ae.Decoder
 
   decoder_layers:
-    Linear1:
-      _target_: torch.nn.Linear
-      in_features: ${model.autoencoder.latent_dim}
-      out_features: ${datamodule.x_dim}
-      bias: True
-    ReLU1:
-      _target_: ${model.autoencoder.activation}
+    # Linear1:
+    #   _target_: torch.nn.Linear
+    #   in_features: ${model.autoencoder.latent_dim}
+    #   out_features: ${datamodule.x_dim}
+    #   bias: True
+    # ReLU1:
+    #   _target_: ${model.autoencoder.activation}
     # Linear2:
     #   _target_: torch.nn.Linear
     #   in_features: ${datamodule.x_dim}
