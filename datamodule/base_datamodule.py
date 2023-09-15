@@ -90,7 +90,7 @@ class BaseDataModule(LightningDataModule):
             import time
             start_time = time.perf_counter()
             log.info(f"Loading the whole dataset files from {self.path_to_files}")
-            self.train_dataset = torch.load(os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{self.num_samples['train']}.pt"))
+            self.train_dataset = torch.load(os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{self.num_samples['train']-self.num_samples['valid']}.pt"))
             log.info(f"Loading the train dataset files took {time.perf_counter() - start_time} seconds.")
             start_time = time.perf_counter()
             self.valid_dataset = torch.load(os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{self.num_samples['valid']}.pt"))
@@ -108,6 +108,10 @@ class BaseDataModule(LightningDataModule):
                 torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
                 torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
                 # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
+            except TypeError:
+                torch.save(self.train_dataset.dataset.pickleable_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
+                torch.save(self.valid_dataset.dataset.pickleable_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
+                # torch.save(self.test_dataset.pickleable_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
             except:
                 if not os.path.exists(self.path_to_files_narval):
                     os.makedirs(self.path_to_files_narval)
@@ -118,8 +122,6 @@ class BaseDataModule(LightningDataModule):
                 torch.save(self.train_dataset, os.path.join(self.path_to_files_narval, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
                 torch.save(self.valid_dataset, os.path.join(self.path_to_files_narval, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
                 # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.datamodule_name}_{len(self.test_dataset)}.pt"))
-
-
 
 
     def setup(self, stage=None):

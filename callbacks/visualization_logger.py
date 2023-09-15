@@ -24,6 +24,8 @@ class VisualizationLoggerCallback(Callback):
         if batch_idx % (self.visualize_every+1) == 0:
 
             try:
+                renormalize = self.datamodule.train_dataset.renormalize()
+            except AttributeError:
                 renormalize = self.datamodule.train_dataset.dataset.renormalize()
             except:
                 renormalize = self.datamodule.train_dataset.dataset.dataset.renormalize()
@@ -40,6 +42,8 @@ class VisualizationLoggerCallback(Callback):
                 num_channels = images.shape[1]
                 # renormalize image and recons?
 
+                plt.cla()
+                plt.close('all')
                 fig, ax = plt.subplots(2, self.n_samples, figsize=(10, 4))
                 for idx in range(self.n_samples):
                     if num_channels == 1:
@@ -51,8 +55,8 @@ class VisualizationLoggerCallback(Callback):
                         recon_ = recons[idx].cpu().numpy() # [width, height, num_channels]
                         image = self.clamp(renormalize(image))
                         recon_ = self.clamp(renormalize(recon_))
-                        print(f"image min, max: {image.min()}, {image.max()}")
-                        print(f"recon_ min, max: {recon_.min()}, {recon_.max()}")
+                        # print(f"image min, max: {image.min()}, {image.max()}")
+                        # print(f"recon_ min, max: {recon_.min()}, {recon_.max()}")
                         color_map = None
 
 
@@ -61,8 +65,8 @@ class VisualizationLoggerCallback(Callback):
                         ax[0,idx].imshow(image, cmap=color_map)
                         ax[1,idx].imshow((recon_ * 255).astype(np.uint8), vmin=0, vmax=255, cmap=color_map)
                     else:
-                        ax[0,idx].imshow(self.clamp(renormalize(image)), vmin=0, vmax=1)
-                        ax[1,idx].imshow(self.clamp(renormalize(recon_)), vmin=0, vmax=1)
+                        ax[0,idx].imshow(image, vmin=0, vmax=1)
+                        ax[1,idx].imshow(recon_, vmin=0, vmax=1)
                         # ax[0,idx].imshow(recon_)
                         
                     ax[0,idx].set_title('Image')

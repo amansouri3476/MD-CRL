@@ -34,6 +34,17 @@ python run_training.py ckpt_path=null model.optimizer.lr=0.001 datamodule/datase
 
 python run_training.py ckpt_path=null trainer.accelerator='gpu' trainer.devices=1 model/optimizer=adam model.optimizer.lr=0.001 model/scheduler_config=reduce_on_plateau model=mixing_synthetic model.penalty_criterion="minmax" model.hinge_loss_weight=0.0 datamodule=mixing datamodule.dataset.num_domains=4 datamodule.dataset.z_dim=8 ~callbacks.visualization_callback model.penalty_weight=1.0 logger.wandb.tags=["mila","test"]
 
+
+# ------------------------------------------------------------------------------------- #
+# --------------------------------------- Balls --------------------------------------- #
+# ------------------------------------------------------------------------------------- #
+
+# ------------------------------------------------------------------------------------- #
+# -------------------------------- Reconstruction Only -------------------------------- #
+
+python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
+
+python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #
 # ------------------------------------------------------------------------------------- #

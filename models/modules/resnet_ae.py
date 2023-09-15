@@ -10,17 +10,20 @@ class Encoder(pl.LightningModule):
         super().__init__()
         
         self.save_hyperparameters()
-        
-        # note that encoder layers are instantiated recursively by hydra, so we only need to connect them
-        # by nn.Sequential
-        self.layers = torch.nn.Sequential(
-            *[layer_config for _, layer_config in self.hparams.encoder_layers.items()]
-        )        
+        resnet18 = self.hparams.encoder_layers.resnet18
+        print(self.hparams.encoder_layers.mlp_layers.items())
+        mlp_layers = torch.nn.Sequential(
+            *[layer_config for _, layer_config in self.hparams.encoder_layers.mlp_layers.items()]
+        )
+        self.layers = torch.nn.Sequential(*list(resnet18.children())[:-1], *mlp_layers)
+        for param in resnet18.parameters():
+            param.requires_grad = False
+
 
     def forward(self, x):
         
         # input `x` or `image` has shape: [batch_size, num_channels, width, height].
-        # the output is of dimensions [batch_size, latent_dim, 1, 1]
+        # the output is of dimensions [batch_size, latent_dim]
         x = self.layers(x)
         # if x is 2D, we need to add the extra dimensions to make it [batch_size, latent_dim, 1, 1]
         if len(x.shape) == 2:
@@ -50,7 +53,7 @@ class Decoder(pl.LightningModule):
         return torch.reshape(self.layers(x), (-1, self.num_channels, self.width, self.height))
         
 
-class CNNAE(pl.LightningModule):
+class ResNetAE(pl.LightningModule):
     def __init__(self, *args, **kwargs):
         """
         """
