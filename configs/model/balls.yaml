@@ -18,4 +18,4 @@ autoencoder_ckpt_path: ${retrieve_encoder_state_dict:${model.pl_model_ckpt_path}
 autoencoder_freeze: False
 
 
-logging_name: "autoencoder_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}"
+logging_name: "autoencoder_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}_iv_${datamodule.dataset.n_balls_invariant}_sp_${datamodule.dataset.n_balls_spurious}"

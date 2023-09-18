@@ -2,7 +2,6 @@
 
 #SBATCH --account=rrg-bengioy-ad
 #SBATCH --cpus-per-task=4
-#SBATCH --gres=gpu:a100:1
 #SBATCH --mem=20G
 #SBATCH --time=02:00:00
 #SBATCH --output=./slurm_out/mdcrl-%j.out
@@ -39,11 +38,11 @@ export WANDB_MODE=offline
 # ------------------------------------------------------------------------------------- #
 # -------------------------------- Reconstruction Only -------------------------------- #
 
-# resnet
-
 # iv=1,sp=1
-# python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls","test"] ~callbacks.early_stopping
-# python run_training.py trainer.gradient_clip_val=0.1 trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls","test"] ~callbacks.early_stopping
+# python run_training.py trainer.gradient_clip_val=0.1 trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls","test"] ~callbacks.early_stopping
+# with resnet
+# python run_training.py trainer.gradient_clip_val=0.1 trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls","test"] ~callbacks.early_stopping
+
 # iv=1,sp=2
 # python run_training.py trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=2 model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls","test"] ~callbacks.early_stopping
 # iv=1,sp=3
@@ -70,7 +69,7 @@ export WANDB_MODE=offline
 # iv=1,sp=1
 # cpu
 # python run_training.py ckpt_path=null trainer.accelerator='cpu' model.optimizer.lr=0.001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=4 model.z_dim_invariant_fraction=0.5 model.hinge_loss_weight=0.0 model.penalty_criterion="minmax" model.penalty_weight=1.0 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/aminm/scratch/logs/training/runs/autoencoder_md_balls_64_iv_1_sp_1/2023-09-16_08-23-15" ckpt_path=null
-# python run_training.py ckpt_path=null trainer.accelerator='cpu' model.optimizer.lr=0.001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=4 model.z_dim_invariant_fraction=0.5 model.hinge_loss_weight=0.0 model.penalty_criterion="minmax" model.penalty_weight=1.0 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/aminm/scratch/logs/training/runs/autoencoder_md_balls_64_iv_1_sp_1/2023-09-16_13-54-39" ckpt_path=null
+python run_training.py ckpt_path=null trainer.gradient_clip_val=0.1 trainer.accelerator='cpu' model.optimizer.lr=0.001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=4 model.z_dim_invariant_fraction=0.5 model.hinge_loss_weight=0.0 model.penalty_criterion="minmax" model.penalty_weight=1.0 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/aminm/scratch/logs/training/runs/autoencoder_md_balls_64_iv_1_sp_1/2023-09-17_02-46-24" ckpt_path=null
 
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #
