@@ -48,11 +48,14 @@ class MDBallsPickleable(torch.utils.data.Dataset):
         self,
         data = None,
         transform: Optional[Callable] = None,
+        **kwargs,
     ):
         super(MDBallsPickleable, self).__init__()
 
         self.data = data
         self.transform = transform
+        self.mean_ = kwargs.get("mean", 0.0)
+        self.std_ = kwargs.get("std", 1.0)
 
     def __getitem__(self, idx):
         return self.data[idx]
@@ -66,4 +69,5 @@ class MDBallsPickleable(torch.utils.data.Dataset):
                 """Renormalize from [-1, 1] to [0, 1]."""
                 return lambda x: x / 2.0 + 0.5
             
-            # TODO: add more options if required
+        # return lambda x: x * self.std_ + self.mean_
+        # return lambda x: x * (self.max_ - self.min_) + self.min_

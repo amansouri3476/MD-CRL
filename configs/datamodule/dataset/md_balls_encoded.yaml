@@ -1,8 +1,7 @@
-dataset_target: datamodule.multi_domain_mnist_encoded_dataset.MNISTMultiDomainEncodedDataset
+dataset_target: datamodule.md_balls_encoded_dataset.BallsMultiDomainEncodedDataset
 
-dataset_name: multi_domain_mnist_encoded_${datamodule.dataset.num_domains}
+dataset_name: multi_domain_balls_encoded_${datamodule.dataset.num_domains}
 num_domains: ${retrieve_num_domain:${run_path}}
-generation_strategy: "auto" # options: auto, manual
 
 dataset_parameters:
   train:
@@ -12,7 +11,6 @@ dataset_parameters:
       split: "train"
       seed: ${datamodule.seed}
       num_domains: ${datamodule.dataset.num_domains}
-      generation_strategy: ${datamodule.dataset.generation_strategy}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -27,7 +25,6 @@ dataset_parameters:
       split: "valid"
       seed: ${datamodule.seed}
       num_domains: ${datamodule.dataset.num_domains}
-      generation_strategy: ${datamodule.dataset.generation_strategy}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -42,7 +39,6 @@ dataset_parameters:
       split: "test"
       seed: ${datamodule.seed}
       num_domains: ${datamodule.dataset.num_domains}
-      generation_strategy: ${datamodule.dataset.generation_strategy}
 
     dataloader:
       batch_size: ${datamodule.batch_size}

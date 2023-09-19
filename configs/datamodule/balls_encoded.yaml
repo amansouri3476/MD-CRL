@@ -1,9 +1,9 @@
 _target_: datamodule.encoded_datamodule.EncodedDataModule
 
 defaults:
-  - dataset: multi_domain_mnist_encoded # mnist, multi_domain_mnist
+  - dataset: md_balls_encoded # mnist, multi_domain_mnist
 
-dataset_name: mnist_encoded
+dataset_name: balls_encoded
 datamodule_name: ${datamodule.dataset_name}
 
 data_dir: ${run_path}

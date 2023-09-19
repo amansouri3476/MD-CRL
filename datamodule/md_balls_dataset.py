@@ -257,8 +257,10 @@ class MDBalls(BallsDataset):
         self.properties_list = kwargs.get("properties_list") # a subset of ["x","y","c","s"] preserving the order
         self.target_property_indices = [i for i,p in enumerate(PROPERTIES_) if p in self.properties_list]
         self.non_target_property_indices = [i for i,p in enumerate(PROPERTIES_) if p not in self.properties_list]
+        self.pickleable_dataset_params = {}
         self.data = self._generate_data()
-        self.pickleable_dataset = MDBallsPickleable(self.data, self.transform)
+        print(f"self.pickleable_dataset_params: {self.pickleable_dataset_params}")
+        self.pickleable_dataset = MDBallsPickleable(self.data, self.transform, **self.pickleable_dataset_params)
 
 
     def draw_sample(self, z_all):
@@ -300,7 +302,7 @@ class MDBalls(BallsDataset):
                 , "image": x
                 , "segmentation_mask": segmentation_masks
                 , "coordinate": z_all[:, :2].flatten()
-                , "color": torch.tensor(rgb_colours)/255.
+                , "color": z_all[:, 2].flatten()
                 }
 
     def _generate_data(self):
@@ -332,6 +334,33 @@ class MDBalls(BallsDataset):
             sample = self.draw_sample(z_all[i])
             sample["domain"] = domain_mask[i]
             data.append(sample)
+        
+        # normalize the image key values by its min and max. min and max are 
+        # 3 dimensional (rgb)
+        # concatenate all images
+        images = np.concatenate([d["image"] for d in data], axis=0) # [num_samples, screen_width, screen_width, 3]
+        # find the min of the last dimension (rgb) for all images
+        self.min_ = images.min() # [1]
+        # self.min_ = images.min(axis=(0,1,2)) # [3]
+        # find the max of the last dimension (rgb) for all images
+        self.max_ = images.max() # [1]
+        # self.max_ = images.max(axis=(0,1,2)) # [3]
+        # find the mean of the last dimension (rgb) for all images
+        self.mean_ = images.mean(axis=(0,1,2)) # [3]
+        # find the std of the last dimension (rgb) for all images
+        self.std_ = images.std(axis=(0,1,2)) # [3] 
+        # # normalize all images by min and max
+        # for i, d in enumerate(data):
+        #     data[i]["image"] = (d["image"] - self.min_) / (self.max_ - self.min_)
+        self.pickleable_dataset_params["min"] = self.min_
+        self.pickleable_dataset_params["max"] = self.max_
+
+        self.pickleable_dataset_params["mean"] = self.mean_
+        self.pickleable_dataset_params["std"] = self.std_
+        # normalize all images by mean and std
+        # for i, d in enumerate(data):
+        #     data[i]["image"] = (d["image"] - self.mean_) / self.std_
+
         return data
 
     def __getitem__(self, idx):
@@ -589,5 +618,8 @@ class MDBalls(BallsDataset):
             if t.__class__.__name__ == "Standardize":
                 """Renormalize from [-1, 1] to [0, 1]."""
                 return lambda x: x / 2.0 + 0.5
-            
-            # TODO: add more options if required
+            else:
+                return lambda x: x
+        # return lambda x: x * self.std_ + self.mean_
+        # return lambda x: x * (self.max_ - self.min_) + self.min_
+        

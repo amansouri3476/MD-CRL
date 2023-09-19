@@ -1,4 +1,4 @@
-dataset_target: datamodule.multi_domain_mnist_dataset.MNISTMultiDomainDataset
+dataset_target: datamodule.md_mnist_dataset.MNISTMultiDomainDataset
 
 dataset_name: multi_domain_mnist_${datamodule.dataset.num_domains}
 num_domains: 2

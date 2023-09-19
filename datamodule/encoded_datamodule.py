@@ -14,7 +14,7 @@ import utils.general as utils
 log = utils.get_logger(__name__)
     
 
-class MnistEncodedDataModule(LightningDataModule):
+class EncodedDataModule(LightningDataModule):
     def __init__(self
                  , seed: int = 1234
                  , batch_size: int= 128
@@ -29,6 +29,7 @@ class MnistEncodedDataModule(LightningDataModule):
         self.seed = seed
         self.dirname = os.path.dirname(__file__)
         self.path_to_files = self.hparams["data_dir"]
+        print("datamodule init successful")
 
     def prepare_data(self):
         
