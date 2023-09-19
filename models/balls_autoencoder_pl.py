@@ -5,6 +5,7 @@ import hydra
 from omegaconf import OmegaConf
 import wandb
 import os
+import numpy as np
 import utils.general as utils
 log = utils.get_logger(__name__)
 
@@ -71,13 +72,14 @@ class BallsAutoencoderPL(BasePl):
         # z: [batch_size, latent_dim]
         # recons: [batch_size, num_channels, width, height]
         z_hat, recons = self(images)
-
+        log.info(f"images.max(): {images.max()}, recons.max(): {recons.max()}, images.min(): {images.min()}, recons.min(): {recons.min()}\n images.mean(): {images.mean()}, recons.mean(): {recons.mean()}")
+        log.info(f"z_hat.max(): {z_hat.max()}, z_hat.min(): {z_hat.min()}, z_hat.mean(): {z_hat.mean()}")
         loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z_hat)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         # self.log(f"penalty_loss", penalty_loss.item())
         self.log(f"train_loss", loss.item(), prog_bar=True)
 
-        self.training_step_outputs.append({"z_hat":z_hat, "z":train_batch["z"], "domain": train_batch["domain"], "color": train_batch["color"]})
+        self.training_step_outputs.append({"z_hat":z_hat})
 
         return loss
 
@@ -120,7 +122,7 @@ class BallsAutoencoderPL(BasePl):
         self.log(f"z_hat_z_spur_r2", r2, prog_bar=True)
 
         # fit a linear regression from z to colours
-        colors_ = valid_batch["color"] # valid_batch["color"]: [batch_size, n_balls_invariant + n_balls_spurious, 3]
+        colors_ = valid_batch["color"] # valid_batch["color"]: [batch_size, n_balls_invariant + n_balls_spurious, 1]
         colors_ = colors_.reshape(colors_.shape[0], -1)
         clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), colors_.detach().cpu().numpy())
         pred_colors = clf.predict(z_hat.detach().cpu().numpy())
@@ -129,60 +131,79 @@ class BallsAutoencoderPL(BasePl):
 
         # THIS IS I/O INTENSIVE
         # self.validation_step_outputs.append({"z_hat":z_hat, "z": valid_batch["z"], "z_invariant": valid_batch["z_invariant"], "z_spurious": valid_batch["z_spurious"], "domain": valid_batch["domain"], "color": valid_batch["color"]})
+        self.validation_step_outputs.append({"z_hat":z_hat})
 
         return {"loss": loss, "pred_z": z_hat}
 
-    # def on_train_epoch_end(self):
+    def on_train_epoch_end(self):
 
-    #     # at the end of each validation epoch, we want to pass the whole dataset through the model
-    #     # and save the outputs of the encoder as a new dataset
-    #     # we also want to save the labels, domains, and colours
-    #     # of the dataset.
-        
-    #     # instantiate the new data with the same keys as the original dataset with zeros tensors
-    #     new_data = dict.fromkeys(["z_hat", "z", "z_invariant", "z_spurious", "domain", "color"])
-    #     key_dims = {"z_hat": self.hparams.z_dim, "z": 1, "domain": 1, "color": 3}
-    #     for key in new_data.keys():
-    #         new_data[key] = torch.zeros((len(self.trainer.datamodule.train_dataset), key_dims[key]))
-        
-    #     for batch_idx, training_step_output in enumerate(self.training_step_outputs):
-    #         # save the outputs of the encoder as a new dataset
-    #         training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
-    #         start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
-    #         end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
-    #         for key, val in zip(training_step_output.keys(), training_step_output.values()):
-    #             try:
-    #                 new_data[key][start:end] = val.detach().cpu()
-    #             except:
-    #                 new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
-    #     # save the new dataset as a pt file in hydra run dir or working directory
-    #     log.info(f"Saving the encoded training dataset of length {len(new_data['z'])} at: {os.getcwd()}")
-    #     torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_train.pt"))
-    #     self.training_step_outputs.clear()
+        # load the train dataset, and replace its "image" key with the new_data["z_hat"] key
+        # and save it as a pt file
+        train_dataset = torch.load(os.path.join(self.trainer.datamodule.path_to_files, f"train_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['train']-self.trainer.datamodule.num_samples['valid']}.pt"))
+        new_data = dict.fromkeys(train_dataset.data[0].keys())
 
-    #     return
+        # stack the values of each key in the new_data dict
+        # new_data is a list of dicts
+        for key in new_data.keys():
+            new_data[key] = torch.stack([torch.tensor(train_dataset.data[i][key]) for i in range(len(train_dataset))], dim=0)
+        new_data.pop("image", None)
+        for key in self.training_step_outputs[0].keys():
+            new_data[key] = torch.zeros((len(train_dataset), self.training_step_outputs[0][key].shape[-1]))
+
+        for batch_idx, training_step_output in enumerate(self.training_step_outputs):
+            # save the outputs of the encoder as a new dataset
+            training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
+            start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
+            end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
+            for key, val in zip(training_step_output.keys(), training_step_output.values()):
+                try:
+                    new_data[key][start:end] = val.detach().cpu()
+                except:
+                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+
+        # save the new dataset as a pt file in hydra run dir or working directory
+        log.info(f"Saving the encoded training dataset of length {len(new_data[key])} at: {os.getcwd()}")
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_train.pt"))
+        self.training_step_outputs.clear()
+
+        return
     
-    # def on_validation_epoch_end(self):
-        
-    #     # instantiate the new data with the same keys as the original dataset with zeros tensors
-    #     new_data = dict.fromkeys(["z", "label", "domain", "color"])
-    #     key_dims = {"z": self.hparams.z_dim, "label": 1, "domain": 1, "color": 3}
-    #     for key in new_data.keys():
-    #         new_data[key] = torch.zeros((len(self.trainer.datamodule.valid_dataset), key_dims[key]))
-        
-    #     for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
-    #         # save the outputs of the encoder as a new dataset
-    #         validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
-    #         start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
-    #         end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
-    #         for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
-    #             try:
-    #                 new_data[key][start:end] = val.detach().cpu()
-    #             except:
-    #                 new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
-    #     # save the new dataset as a pt file in hydra run dir or working directory
-    #     log.info(f"Saving the encoded validation dataset of length {len(new_data['z'])} at: {os.getcwd()}")
-    #     torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_valid.pt"))
-    #     self.validation_step_outputs.clear()
+    def on_validation_epoch_end(self):
 
-    #     return
+        # load the valid dataset, and replace its "image" key with the new_data["z_hat"] key
+        # and save it as a pt file
+        try:
+            path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+            valid_dataset = torch.load(path).dataset
+            log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
+        except:
+            path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+            valid_dataset = torch.load(path)
+            log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
+        new_data = dict.fromkeys(valid_dataset.data[0].keys())
+
+        # stack the values of each key in the new_data dict
+        # new_data is a list of dicts
+        for key in new_data.keys():
+            new_data[key] = torch.stack([torch.tensor(valid_dataset.data[i][key]) for i in range(len(valid_dataset))], dim=0)
+        new_data.pop("image", None)
+        for key in self.validation_step_outputs[0].keys():
+            new_data[key] = torch.zeros((len(valid_dataset), self.validation_step_outputs[0][key].shape[-1]))
+
+        for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
+            # save the outputs of the encoder as a new dataset
+            validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
+            start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
+            end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
+            for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
+                try:
+                    new_data[key][start:end] = val.detach().cpu()
+                except:
+                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+        
+        # save the new dataset as a pt file in hydra run dir or working directory
+        log.info(f"Saving the encoded validation dataset of length {len(new_data[key])} at: {os.getcwd()}")
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_valid.pt"))
+        self.validation_step_outputs.clear()
+
+        return
