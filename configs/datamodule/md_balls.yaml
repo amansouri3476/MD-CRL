@@ -42,8 +42,8 @@ color_selection: cyclic_fixed # options: cyclic_fixed, same, random
 transforms:
     t1:
       _target_: torchvision.transforms.ToTensor
-    # t2:
-    #   _target_: datamodule.transformations.Standardize
+    t2:
+      _target_: datamodule.transformations.Standardize
     t3:
       _target_: datamodule.transformations.TensorClip
 #     t4:

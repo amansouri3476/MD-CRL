@@ -340,21 +340,26 @@ class MDBalls(BallsDataset):
         # concatenate all images
         images = np.concatenate([d["image"] for d in data], axis=0) # [num_samples, screen_width, screen_width, 3]
         # find the min of the last dimension (rgb) for all images
-        self.min_ = images.min(axis=(0,1,2)) # [3]
+        self.min_ = images.min() # [1]
+        # self.min_ = images.min(axis=(0,1,2)) # [3]
         # find the max of the last dimension (rgb) for all images
-        self.max_ = images.max(axis=(0,1,2)) # [3]
+        self.max_ = images.max() # [1]
+        # self.max_ = images.max(axis=(0,1,2)) # [3]
         # find the mean of the last dimension (rgb) for all images
         self.mean_ = images.mean(axis=(0,1,2)) # [3]
         # find the std of the last dimension (rgb) for all images
-        self.std_ = images.std(axis=(0,1,2)) # [3]
+        self.std_ = images.std(axis=(0,1,2)) # [3] 
         # # normalize all images by min and max
         # for i, d in enumerate(data):
         #     data[i]["image"] = (d["image"] - self.min_) / (self.max_ - self.min_)
+        self.pickleable_dataset_params["min"] = self.min_
+        self.pickleable_dataset_params["max"] = self.max_
+
         self.pickleable_dataset_params["mean"] = self.mean_
         self.pickleable_dataset_params["std"] = self.std_
         # normalize all images by mean and std
-        for i, d in enumerate(data):
-            data[i]["image"] = (d["image"] - self.mean_) / self.std_
+        # for i, d in enumerate(data):
+        #     data[i]["image"] = (d["image"] - self.mean_) / self.std_
 
         return data
 
@@ -609,11 +614,12 @@ class MDBalls(BallsDataset):
         # z_all[idx_mask, 5] = rotation_angles
 
     def renormalize(self):
-        # for t in self.transform.transforms:
-        #     if t.__class__.__name__ == "Standardize":
-        #         """Renormalize from [-1, 1] to [0, 1]."""
-        #         return lambda x: x / 2.0 + 0.5
-        #     else:
-        #         return lambda x: x
-        return lambda x: x * self.std_ + self.mean_
+        for t in self.transform.transforms:
+            if t.__class__.__name__ == "Standardize":
+                """Renormalize from [-1, 1] to [0, 1]."""
+                return lambda x: x / 2.0 + 0.5
+            else:
+                return lambda x: x
+        # return lambda x: x * self.std_ + self.mean_
+        # return lambda x: x * (self.max_ - self.min_) + self.min_
         

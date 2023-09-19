@@ -38,6 +38,9 @@ export WANDB_MODE=offline
 # ------------------------------------------------------------------------------------- #
 # -------------------------------- Reconstruction Only -------------------------------- #
 
+# resnet
+python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
+
 # iv=1,sp=1
 # python run_training.py trainer.gradient_clip_val=0.1 trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls","test"] ~callbacks.early_stopping
 # with resnet

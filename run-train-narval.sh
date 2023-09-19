@@ -92,5 +92,9 @@ export WANDB_MODE=offline
 # python run_training.py ckpt_path=null model.optimizer.lr=0.001 datamodule/dataset=multi_domain_mnist datamodule.dataset.num_domains=8 model=mnist_md_autoencoder model.z_dim=256 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" model.autoencoder.num_channels=3 logger.wandb.tags=["mila","mnist","intrepolation"] ~callbacks.early_stopping trainer.gpus=1 model.wait_steps=10000 model.linear_steps=1000 model.z_dim_invariant=64
 # python run_training.py ckpt_path=null model.optimizer.lr=0.001 datamodule/dataset=multi_domain_mnist datamodule.dataset.num_domains=8 model=mnist_md_autoencoder model.z_dim=256 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" model.autoencoder.num_channels=3 logger.wandb.tags=["mila","mnist","reconstruction"] ~callbacks.early_stopping trainer.gpus=1 model.wait_steps=10000 model.linear_steps=1000 model.z_dim_invariant=64
 
+# resnet
+python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.0001 datamodule=md_balls datamodule.dataset.n_balls_invariant=1 datamodule.dataset.n_balls_spurious=1 model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
+
+
 deactivate
 module purge
