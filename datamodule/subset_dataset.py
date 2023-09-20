@@ -10,6 +10,8 @@ class SubsetDataset(Dataset):
         self.transform = transform
         self.mean_ = subset.mean_
         self.std_ = subset.std_
+        self.min_ = subset.min_
+        self.max_ = subset.max_
 
     def __getitem__(self, index):
         return self.data[index]
@@ -18,11 +20,16 @@ class SubsetDataset(Dataset):
         return self.length
 
     def renormalize(self):
+        for t in self.transform.transforms:
+            if t.__class__.__name__ == "Standardize":
+                """Renormalize from [-1, 1] to [0, 1]."""
+                return lambda x: x / 2.0 + 0.5
         # for t in self.transform.transforms:
         #     if t.__class__.__name__ == "Standardize":
         #         """Renormalize from [-1, 1] to [0, 1]."""
-        #         return lambda x: x / 2.0 + 0.5
-        #     else:
-        #         return lambda x: x
-            
-        return lambda x: x * self.std_ + self.mean_
+        #         return lambda x: (x * self.std_ + self.mean_) / 2.0 + 0.5
+        # else:
+        #     return lambda x: x
+        
+        # return lambda x: x * self.std_ + self.mean_
+        # return lambda x: x * (self.max_ - self.min_) + self.min_

@@ -42,9 +42,25 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # ------------------------------------------------------------------------------------- #
 # -------------------------------- Reconstruction Only -------------------------------- #
 
-# python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
 
-python run_training.py trainer.accelerator='cpu' ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
+# cnn with conv and upsampling
+# python run_training.py trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","cnn"] ~callbacks.early_stopping
+
+# resnet18
+python run_training.py trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=25 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","resnet"] ~callbacks.early_stopping
+
+# python run_training.py trainer.accelerator='cpu' ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
+
+# ------------------------------------------------------------------------------------- #
+# -------------------------- Disentanglement with encoded images ---------------------- #
+
+# -------------------------- min-max penalty, no hinge loss ---------------------- #
+
+# iv=1,sp=1
+# cpu
+# python run_training.py ckpt_path=null trainer.accelerator='cpu' model.optimizer.lr=0.001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=4 model.z_dim_invariant_fraction=0.5 model.hinge_loss_weight=0.0 model.penalty_criterion="minmax" model.penalty_weight=1.0 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/aminm/scratch/logs/training/runs/autoencoder_md_balls_64_iv_1_sp_1/2023-09-16_08-23-15" ckpt_path=null
+# python run_training.py ckpt_path=null trainer.gradient_clip_val=0.1 trainer.accelerator='cpu' model.optimizer.lr=0.001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=4 model.z_dim_invariant_fraction=0.5 model.hinge_loss_weight=0.0 model.penalty_criterion="minmax" model.penalty_weight=1.0 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_64_iv_1_sp_1/2023-09-19_07-33-06" ckpt_path=null
+
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #
 # ------------------------------------------------------------------------------------- #

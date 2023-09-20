@@ -618,8 +618,8 @@ class MDBalls(BallsDataset):
             if t.__class__.__name__ == "Standardize":
                 """Renormalize from [-1, 1] to [0, 1]."""
                 return lambda x: x / 2.0 + 0.5
-            else:
-                return lambda x: x
+        
+        # return lambda x: x
         # return lambda x: x * self.std_ + self.mean_
         # return lambda x: x * (self.max_ - self.min_) + self.min_
         

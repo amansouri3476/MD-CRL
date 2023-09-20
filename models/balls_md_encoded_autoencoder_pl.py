@@ -71,7 +71,7 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         self.log(f"train_penalty_loss", penalty_loss_value.item())
         self.log(f"train_hinge_loss", hinge_loss_value.item())
-        self.log(f"train_loss", loss.item())
+        self.log(f"train_loss", loss.item(), prog_bar=True)
 
         return loss
 

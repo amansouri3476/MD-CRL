@@ -21,8 +21,8 @@ encoder_cnn:
       stride: 2
       padding: 1
       # 3x64x64 --> out_channelsx32x32
-    ReLU1:
-      _target_: torch.nn.ReLU
+    LeakyReLU1:
+      _target_: torch.nn.LeakyReLU
     Conv2:
       _target_: torch.nn.Conv2d
       in_channels: 16
@@ -31,8 +31,8 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx32x32 --> out_channelsx16x16
-    ReLU2:
-      _target_: torch.nn.ReLU
+    LeakyReLU2:
+      _target_: torch.nn.LeakyReLU
     Conv3:
       _target_: torch.nn.Conv2d
       in_channels: 32
@@ -41,8 +41,8 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx16x16 --> out_channelsx8x8
-    ReLU3:
-      _target_: torch.nn.ReLU
+    LeakyReLU3:
+      _target_: torch.nn.LeakyReLU
     Conv4:
       _target_: torch.nn.Conv2d
       in_channels: 64
@@ -51,8 +51,8 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx8x8 --> out_channelsx4x4
-    ReLU4:
-      _target_: torch.nn.ReLU
+    LeakyReLU4:
+      _target_: torch.nn.LeakyReLU
     Conv5:
       _target_: torch.nn.Conv2d
       in_channels: 128
@@ -61,8 +61,8 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx4x4 --> out_channelsx2x2
-    ReLU5:
-      _target_: torch.nn.ReLU
+    LeakyReLU5:
+      _target_: torch.nn.LeakyReLU
     Conv6:
       _target_: torch.nn.Conv2d
       in_channels: 128
@@ -71,8 +71,8 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx2x2 --> latent_dimx1x1
-    # ReLU6:
-    #   _target_: torch.nn.ReLU
+    # LeakyReLU6:
+    #   _target_: torch.nn.LeakyReLU
 
       
 decoder_cnn:
@@ -103,8 +103,8 @@ decoder_cnn:
     #   _target_: torch.nn.BatchNorm2d
     #   num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Conv1.out_channels}
 
-    ReLU1:
-      _target_: torch.nn.ReLU
+    LeakyReLU1:
+      _target_: torch.nn.LeakyReLU
 
     Upsample2:
       _target_: torch.nn.Upsample
@@ -126,8 +126,8 @@ decoder_cnn:
     #   _target_: torch.nn.BatchNorm2d
     #   num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Conv2.out_channels}
 
-    ReLU2:
-      _target_: torch.nn.ReLU
+    LeakyReLU2:
+      _target_: torch.nn.LeakyReLU
 
     Upsample3:
       _target_: torch.nn.Upsample
@@ -149,8 +149,8 @@ decoder_cnn:
     #   _target_: torch.nn.BatchNorm2d
     #   num_features: ${model.autoencoder.decoder_cnn.decoder_layers.Conv3.out_channels}
 
-    ReLU3:
-      _target_: torch.nn.ReLU
+    LeakyReLU3:
+      _target_: torch.nn.LeakyReLU
 
     Upsample4:
       _target_: torch.nn.Upsample
@@ -168,8 +168,8 @@ decoder_cnn:
       padding: 1
       # in_channelsx16x16 --> out_channelsx16x16
 
-    ReLU4:
-      _target_: torch.nn.ReLU
+    LeakyReLU4:
+      _target_: torch.nn.LeakyReLU
 
     Upsample5:
       _target_: torch.nn.Upsample
@@ -187,8 +187,8 @@ decoder_cnn:
       padding: 1
       # in_channelsx32x32 --> out_channelsx32x32
 
-    ReLU5:
-      _target_: torch.nn.ReLU
+    LeakyReLU5:
+      _target_: torch.nn.LeakyReLU
 
     Upsample6:
       _target_: torch.nn.Upsample
@@ -206,5 +206,5 @@ decoder_cnn:
       padding: 1
       # in_channelsx64x64 --> num_channelsx64x64
 
-    # ReLU6:
-    #   _target_: torch.nn.ReLU
+    # LeakyReLU6:
+    #   _target_: torch.nn.LeakyReLU
