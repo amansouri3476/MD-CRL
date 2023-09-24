@@ -73,7 +73,11 @@ class BallsAutoencoderPL(BasePl):
         # recons: [batch_size, num_channels, width, height]
         z_hat, recons = self(images)
         log.info(f"images.max(): {images.max()}, recons.max(): {recons.max()}, images.min(): {images.min()}, recons.min(): {recons.min()}\n images.mean(): {images.mean()}, recons.mean(): {recons.mean()}")
+<<<<<<< HEAD
+        log.info(f"z_hat.max(): {z_hat.max()}, z_hat.min(): {z_hat.min()}, z_hat.mean(): {z_hat.mean()}")
+=======
         log.info(f"z_hat.max(): {z_hat.max()}, z_hat.min(): {z_hat.min()}, z_hat.mean(): {z_hat.mean()}, z_hat.std(): {z_hat.std()}")
+>>>>>>> c0ec19f1f6f0762976ef73e61143b2ee0b2958d4
         loss, reconstruction_loss, penalty_loss = self.loss(images, recons, z_hat)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         # self.log(f"penalty_loss", penalty_loss.item())
