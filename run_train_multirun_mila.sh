@@ -151,10 +151,11 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # ------------------------------------------------------------------------------------- #
 
 # ------------------------------------------------------------------------------------- #
-# -------------------------------- Just reconstruction -------------------------- #
+# ----------------------------------- Just reconstruction ----------------------------- #
 
-python run_training.py ckpt_path=null model/autoencoder=mlp_ae_synthetic model/optimizer=adam model.optimizer.lr=0.001 model=mixing_synthetic datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 ~callbacks.visualization_callback model.penalty_weight=1.0 datamodule.batch_size=128 datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=8 logger.wandb.tags=["mila","poly-mixing"]
-
+python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=poly_ae model.optimizer.lr=0.001 datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 datamodule.batch_size=512 datamodule.dataset.z_dim=6 model.z_dim=6 datamodule.dataset.num_domains=8 datamodule.dataset.x_dim=200 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing"]
+# ------------------------------------------------------------------------------------- #
+# ------------------------------------- Disentanglement ------------------------------- #
 
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #

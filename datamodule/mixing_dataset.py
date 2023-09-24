@@ -9,6 +9,7 @@ log = utils.get_logger(__name__)
 from tqdm import tqdm
 import copy
 log_ = True
+from .md_mixing_dataset_pickle import MDMixingPickleable
 
 class SyntheticMixingDataset(torch.utils.data.Dataset):
     """
@@ -56,6 +57,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         self.polynomial_degree = kwargs["polynomial_degree"]
         self.mixing_G = self._generate_mixing_G(linear, z_dim, x_dim)
         self.data = self._generate_data()
+        self.pickleable_dataset = MDMixingPickleable(self, self.data)
 
     def __len__(self) -> int:
         return self.num_samples

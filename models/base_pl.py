@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 from models.utils import update
+import torch
 import hydra
 from omegaconf import OmegaConf
 
@@ -28,13 +29,13 @@ class BasePl(pl.LightningModule):
             hparams_overrides = self.hparams.pop("hparams_overrides")
             update(self.hparams, hparams_overrides)
 
-        self.penalty_criterion = self.hparams.penalty_criterion
-        if self.penalty_criterion["minmax"]:
+        self.penalty_criterion = self.hparams.get("penalty_criterion", {"minmax": 1., "stddev": 0., "domain_classification": 0.})
+        if self.penalty_criterion and self.penalty_criterion["minmax"]:
             # self.penalty_loss = penalty_loss_minmax
-            self.loss_transform = self.hparams.loss_transform
+            self.loss_transform = self.hparams.get("loss_transform", "mse")
         # elif self.penalty_criterion:
         #     # self.penalty_loss = penalty_loss_stddev
-        if self.penalty_criterion["domain_classification"]:
+        if self.penalty_criterion and self.penalty_criterion["domain_classification"]:
             # self.penalty_loss = penalty_domain_classification
             from models.modules.multinomial_logreg import LogisticRegressionModel
             from torch import nn
@@ -43,9 +44,10 @@ class BasePl(pl.LightningModule):
             self.domain_classification_loss = nn.CrossEntropyLoss()
         # else:
         #     raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
-        self.stddev_threshold = self.hparams.stddev_threshold
-        self.stddev_eps = self.hparams.stddev_eps
-        self.hinge_loss_weight = self.hparams.hinge_loss_weight
+        self.top_k = self.hparams.get("top_k", 5)
+        self.stddev_threshold = self.hparams.get("stddev_threshold", 0.1)
+        self.stddev_eps = self.hparams.get("stddev_eps", 1e-4)
+        self.hinge_loss_weight = self.hparams.get("hinge_loss_weight", 0.0)
     
     def configure_optimizers(self):
 

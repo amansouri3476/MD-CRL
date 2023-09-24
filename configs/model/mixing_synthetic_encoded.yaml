@@ -14,7 +14,7 @@ z_dim: ${add_int:${datamodule.dataset.z_dim},${mult_int:${model.mismatch_dims},2
 z_dim_invariant: ${add_int:${datamodule.dataset.z_dim_invariant},${model.mismatch_dims}} # make sure it is smaller than encoder's latent_dim
 # penalty_criterion: "minmax" # options: minmax, stddev
 penalty_criterion:
-  minmax: 0.
+  minmax: 1.
   stddev: 0.
   domain_classification: 0.
 
@@ -22,7 +22,7 @@ loss_transform: "mse"
 penalty_weight: 0.01
 stddev_threshold: 1.0
 stddev_eps: 0.0001
-hinge_loss_weight: 0.0
+hinge_loss_weight: 25.0
 wait_steps: 0 # 500 # 2000
 linear_steps: 1 # 2000 # 3000
 

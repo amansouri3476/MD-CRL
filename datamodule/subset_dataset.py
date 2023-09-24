@@ -2,11 +2,11 @@ import torch
 from torch.utils.data import Dataset
 
 class SubsetDataset(Dataset):
-    def __init__(self, subset, indices, transform):
+    def __init__(self, subset, indices, transform, length):
         self.data = []
         for i in indices:
             self.data.append(subset[i])
-        self.length = len(self.data)
+        self.length = length
         self.transform = transform
         self.mean_ = subset.mean_ if hasattr(subset, "mean_") else 0.0
         self.std_ = subset.std_ if hasattr(subset, "std_") else 1.0
@@ -14,11 +14,11 @@ class SubsetDataset(Dataset):
         self.max_ = subset.max_ if hasattr(subset, "max_") else 1.0
         # extract all attributes of subset.dataset as the attributes of this new dataset
         for attr in dir(subset):
-            if not attr.startswith("__") and not attr == "data":
+            if not attr.startswith("__") and not attr == "data" and not attr == "length":
                 setattr(self, attr, getattr(subset, attr))
 
-    def __getitem__(self, index):
-        return self.data[index]
+    def __getitem__(self, idx):
+        return self.data[idx]
 
     def __len__(self):
         return self.length

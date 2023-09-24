@@ -14,5 +14,5 @@ scheduler_dict:
 #     scheduler:  # scheduler instance, will be passed inside configure_optimizer
     interval: "step"  # The unit of the scheduler's step size. 'step' or 'epoch
     frequency: 50  # corresponds to updating the learning rate after every `frequency` epoch/step
-    monitor: val_r2_hz_z # train_loss # Used by a LearningRateMonitor callback when ReduceLROnPlateau is used
+    monitor: train_loss # train_loss # Used by a LearningRateMonitor callback when ReduceLROnPlateau is used
     name: "ReduceLROnPlateau"

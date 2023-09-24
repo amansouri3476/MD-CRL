@@ -129,8 +129,6 @@ class BallsAutoencoderPL(BasePl):
         r2 = r2_score(colors_.detach().cpu().numpy(), pred_colors)
         self.log(f"colors_r2", r2, prog_bar=True)
 
-        # THIS IS I/O INTENSIVE
-        # self.validation_step_outputs.append({"z_hat":z_hat, "z": valid_batch["z"], "z_invariant": valid_batch["z_invariant"], "z_spurious": valid_batch["z_spurious"], "domain": valid_batch["domain"], "color": valid_batch["color"]})
         self.validation_step_outputs.append({"z_hat":z_hat})
 
         return {"loss": loss, "pred_z": z_hat}
