@@ -13,7 +13,12 @@ z_dim: 4
 z_dim_invariant_fraction: 0.5
 z_dim_invariant: ${mult_int:${model.z_dim},${model.z_dim_invariant_fraction}}
 # z_dim_invariant: ${floor_div:${model.z_dim},2}
-penalty_criterion: "minmax" # options: minmax, stddev
+# penalty_criterion: "minmax" # options: minmax, stddev, "domain_classification"
+penalty_criterion:
+  minmax: 1.
+  stddev: 0.
+  domain_classification: 1.
+
 loss_transform: "mse"
 penalty_weight: 0.1
 stddev_threshold: 1.0
@@ -33,4 +38,4 @@ autoencoder_ckpt_path: ${retrieve_encoder_state_dict:${model.pl_model_ckpt_path}
 autoencoder_freeze: False
 
 
-logging_name: "autoencoder_encoded_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}"
+logging_name: "autoencoder_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}"
