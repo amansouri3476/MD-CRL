@@ -146,6 +146,15 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 
 # python run_training.py ckpt_path=null trainer.gpus=0 model/optimizer=adam model.optimizer.lr=0.001 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=1.0 datamodule.dataset.z_dim=4 model.wait_steps=0 model.linear_steps=1 logger.wandb.tags=["mila","4-domain","hinge_loss"]
 
+# ------------------------------------------------------------------------------------- #
+# ----------------------- Polynomial Mixing, Non-Linear Model ------------------------- #
+# ------------------------------------------------------------------------------------- #
+
+# ------------------------------------------------------------------------------------- #
+# -------------------------------- Just reconstruction -------------------------- #
+
+python run_training.py ckpt_path=null model/autoencoder=mlp_ae_synthetic model/optimizer=adam model.optimizer.lr=0.001 model=mixing_synthetic datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 ~callbacks.visualization_callback model.penalty_weight=1.0 datamodule.batch_size=128 datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=8 logger.wandb.tags=["mila","poly-mixing"]
+
 
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #

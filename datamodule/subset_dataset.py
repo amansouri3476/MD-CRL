@@ -8,10 +8,14 @@ class SubsetDataset(Dataset):
             self.data.append(subset[i])
         self.length = len(self.data)
         self.transform = transform
-        self.mean_ = subset.mean_
-        self.std_ = subset.std_
-        self.min_ = subset.min_
-        self.max_ = subset.max_
+        self.mean_ = subset.mean_ if hasattr(subset, "mean_") else 0.0
+        self.std_ = subset.std_ if hasattr(subset, "std_") else 1.0
+        self.min_ = subset.min_ if hasattr(subset, "min_") else 0.0
+        self.max_ = subset.max_ if hasattr(subset, "max_") else 1.0
+        # extract all attributes of subset.dataset as the attributes of this new dataset
+        for attr in dir(subset):
+            if not attr.startswith("__") and not attr == "data":
+                setattr(self, attr, getattr(subset, attr))
 
     def __getitem__(self, index):
         return self.data[index]

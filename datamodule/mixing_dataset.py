@@ -7,6 +7,7 @@ from typing import Callable, Optional
 import utils.general as utils
 log = utils.get_logger(__name__)
 from tqdm import tqdm
+import copy
 log_ = True
 
 class SyntheticMixingDataset(torch.utils.data.Dataset):
@@ -151,7 +152,23 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
             return lambda z: torch.matmul(z, G)
 
         else:
-            if self.non_linearity == "mlp":
+            if self.non_linearity == "polynomial":
+                # return a function that takes a batch of z and returns a multivariate
+                # polynomial of z
+
+                poly_size = compute_total_polynomial_terms(self.polynomial_degree, self.z_dim)
+                # Generate random coefficients for the polynomial
+                coff_matrix = np.random.multivariate_normal(np.zeros(poly_size), np.eye(poly_size), size=self.x_dim).T
+
+                from functools import partial
+                self.G = partial(compute_decoder_polynomial, self.polynomial_degree)
+
+                # Define the polynomial function using lambda
+                # return lambda z: np.matmul(self.G(z.squeeze()), coff_matrix)
+                return lambda z: torch.tensor(np.concatenate(list(map(lambda idx: np.matmul(self.G(z[idx, :]), coff_matrix), range(z.shape[0]))), axis=0), dtype=torch.float32)
+                
+
+            elif self.non_linearity == "mlp":
                 # instantiate the non-linear G with hydra
                 self.G = torch.nn.Sequential(
                 *[layer_config for _, layer_config in self.mixing_architecture_config.items()]
@@ -165,14 +182,28 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
                 # return a lambda function that takes a batch of z and returns Gz
                 # make sure the output does not require any grads, and is simply a torch tensor
                 return lambda z: self.G(z).detach()
-            elif self.non_linearity == "polynomial":
-                # return a function that takes a batch of z and returns a polynomial of z
-                # Generate random coefficients for the polynomial
-                coefficients = torch.randn(self.polynomial_degree + 1, z_dim)
-                def polynomial_function(z):
-                    return torch.sum(coefficients.unsqueeze(0) * z.unsqueeze(1).pow(torch.arange(self.polynomial_degree + 1, dtype=z.dtype, device=z.device)), dim=2)
-                self.G = polynomial_function
-                
-                # Define the polynomial function using lambda
-                return lambda z: self.G(z).detach()
 
+
+def compute_total_polynomial_terms(poly_degree, latent_dim):
+    count=0
+    for degree in range(poly_degree+1):
+        count+= pow(latent_dim, degree)
+    return count
+
+def compute_kronecker_product(degree, latent):
+    if degree ==0:
+        out = np.array([1])
+    else:
+        out = copy.deepcopy(latent)
+        for idx in range(1, degree):
+            out= np.kron(out, latent)
+    return out
+
+def compute_decoder_polynomial(poly_degree, latent):
+    out = []
+    for degree in range(poly_degree+1):
+        out.append(compute_kronecker_product(degree, latent))
+
+    out = np.concatenate(out)
+    out = np.reshape(out, (1,out.shape[0]))
+    return out

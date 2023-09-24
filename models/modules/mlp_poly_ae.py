@@ -30,9 +30,9 @@ class Decoder(pl.LightningModule):
         
         # note that encoder layers are instantiated recursively by hydra, so we only need to connect them
         # by nn.Sequential
-        self.layers = torch.nn.Sequential(
-            *[layer_config for _, layer_config in self.hparams.decoder_layers.items()]
-        )
+        print(self.hparams.decoder_layers.items())
+        for layer_key, layer in self.hparams.decoder_layers.items():
+            self.layers = layer
                 
     def forward(self, z):
         
@@ -42,7 +42,7 @@ class Decoder(pl.LightningModule):
         return self.layers(z)
         
 
-class FCAE(pl.LightningModule):
+class FCAEPoly(pl.LightningModule):
     def __init__(self, *args, **kwargs):
         """
         """
@@ -51,6 +51,8 @@ class FCAE(pl.LightningModule):
 
         self.encoder_fc = hydra.utils.instantiate(self.hparams.encoder_fc)
         self.decoder_fc = hydra.utils.instantiate(self.hparams.decoder_fc)
+        print(f"encoder: {self.encoder_fc}")
+        print(f"decoder: {self.decoder_fc}")
         
     def forward(self, x):
         # `x` has shape: [batch_size, x_dim]

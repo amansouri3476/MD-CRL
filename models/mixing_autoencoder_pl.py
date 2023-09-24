@@ -5,7 +5,7 @@ import hydra
 from omegaconf import OmegaConf
 import wandb
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
-from models.utils import penalty_loss_minmax, penalty_loss_stddev
+from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss, penalty_domain_classification
 
 
 class MixingAutoencoderPL(BasePl):
@@ -41,17 +41,6 @@ class MixingAutoencoderPL(BasePl):
         self.penalty_weight = self.hparams.penalty_weight
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
-        self.penalty_criterion = self.hparams.penalty_criterion
-        if self.penalty_criterion == "minmax":
-            self.penalty_loss = penalty_loss_minmax
-            self.loss_transform = self.hparams.loss_transform
-        elif self.penalty_criterion == "stddev":
-            self.penalty_loss = penalty_loss_stddev
-        else:
-            raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
-        self.stddev_threshold = self.hparams.stddev_threshold
-        self.stddev_eps = self.hparams.stddev_eps
-        self.hinge_loss_weight = self.hparams.hinge_loss_weight
 
     def forward(self, x):
         return self.model(x)
@@ -60,13 +49,25 @@ class MixingAutoencoderPL(BasePl):
 
         # x, x_hat: [batch_size, x_dim]
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
+        penalty_loss_value = 0
+        hinge_loss_value = hinge_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
+
+        if self.penalty_criterion["minmax"]:
+            penalty_loss_args = [self.hparams.top_k, self.loss_transform]
+            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion["stddev"]:
+            penalty_loss_args = []
+            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion["domain_classification"]:
+            penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
+            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
         
-        if self.penalty_criterion == "minmax":
-            penalty_loss_args = [self.hparams.top_k, self.loss_transform, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight, self.loss_transform]
-        else:
-            penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        penalty_loss_value, hinge_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-        loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
+        penalty_loss_value = penalty_loss_value * self.penalty_weight
+        hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
+        loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
         return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
 
     def training_step(self, train_batch, batch_idx):
@@ -91,7 +92,7 @@ class MixingAutoencoderPL(BasePl):
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         self.log(f"train_penalty_loss", penalty_loss_value.item())
         self.log(f"train_hinge_loss", hinge_loss_value.item())
-        self.log(f"train_loss", loss.item())
+        self.log(f"train_loss", loss.item(), prog_bar=True)
 
         return loss
 
@@ -105,18 +106,27 @@ class MixingAutoencoderPL(BasePl):
         # x_hat: [batch_size, x_dim]
         z_hat, x_hat = self(x)
 
-        if batch_idx % 50 == 0:
-            if self.penalty_criterion == "minmax":
+        if batch_idx % 20 == 0:
+            if self.penalty_criterion["minmax"]:
                 # print all z_hat mins of all domains
                 print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 # print all z_hat maxs of all domains
                 print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 print(f"============== ============== ============== ==============\n")
-            elif self.penalty_criterion == "stddev":
+            if self.penalty_criterion["stddev"]:
                 # print all z_hat stds of all domains for each of z_dim_invariant dimensions
                 for dim in range(self.z_dim_invariant_model):
                     print(f"============== z_hat std all domains dim {dim} ==============\n{[z_hat[(domain == i).squeeze(), dim].std().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 print(f"============== ============== ============== ==============\n")
+            if self.penalty_criterion["domain_classification"]:
+                # print the accuracy of classifying domains from z_hat[:, :z_dim_invariant]
+                from sklearn.linear_model import LogisticRegression
+                # import accuracy from metrics
+                from sklearn.metrics import accuracy_score
+                clf = LogisticRegression(random_state=0, max_iter=1000).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), domain.detach().cpu().numpy())
+                pred_domain = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+                accuracy = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+                print(f"============== z_hat domain classification accuracy: {accuracy} ==============")
 
 
         # we have the set of z and z_hat. We want to train a linear regression to predict the
@@ -124,7 +134,7 @@ class MixingAutoencoderPL(BasePl):
         # import linear regression from sklearn
         from sklearn.linear_model import LinearRegression
         from sklearn import metrics
-        self.z_dim_invariant_data = self.trainer.datamodule.train_dataset.dataset.z_dim_invariant
+        self.z_dim_invariant_data = self.trainer.datamodule.train_dataset.z_dim_invariant
 
         # noise = torch.randn_like(z) * 0.00
         # noise.to(z.device)
@@ -239,4 +249,78 @@ class MixingAutoencoderPL(BasePl):
         # self.log({f"Regressions": fig})
 
 
-        return {"loss": loss, "pred_z": z}
+        return {"loss": loss}
+    
+    def on_train_epoch_end(self):
+
+        # load the train dataset, and replace its "x" key with the new_data["z_hat"] key
+        # and save it as a pt file
+        train_dataset = torch.load(os.path.join(self.trainer.datamodule.path_to_files, f"train_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['train']-self.trainer.datamodule.num_samples['valid']}.pt"))
+        new_data = dict.fromkeys(train_dataset.data[0].keys())
+
+        # stack the values of each key in the new_data dict
+        # new_data is a list of dicts
+        for key in new_data.keys():
+            new_data[key] = torch.stack([torch.tensor(train_dataset.data[i][key]) for i in range(len(train_dataset))], dim=0)
+        new_data.pop("image", None)
+        for key in self.training_step_outputs[0].keys():
+            new_data[key] = torch.zeros((len(train_dataset), self.training_step_outputs[0][key].shape[-1]))
+
+        for batch_idx, training_step_output in enumerate(self.training_step_outputs):
+            # save the outputs of the encoder as a new dataset
+            training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
+            start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
+            end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
+            for key, val in zip(training_step_output.keys(), training_step_output.values()):
+                try:
+                    new_data[key][start:end] = val.detach().cpu()
+                except:
+                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+
+        # save the new dataset as a pt file in hydra run dir or working directory
+        log.info(f"Saving the encoded training dataset of length {len(new_data[key])} at: {os.getcwd()}")
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_train.pt"))
+        self.training_step_outputs.clear()
+
+        return
+    
+    def on_validation_epoch_end(self):
+
+        # load the valid dataset, and replace its "image" key with the new_data["z_hat"] key
+        # and save it as a pt file
+        try:
+            path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+            valid_dataset = torch.load(path).dataset
+            log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
+        except:
+            path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+            valid_dataset = torch.load(path)
+            log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
+        new_data = dict.fromkeys(valid_dataset.data[0].keys())
+
+        # stack the values of each key in the new_data dict
+        # new_data is a list of dicts
+        for key in new_data.keys():
+            new_data[key] = torch.stack([torch.tensor(valid_dataset.data[i][key]) for i in range(len(valid_dataset))], dim=0)
+        new_data.pop("image", None)
+        for key in self.validation_step_outputs[0].keys():
+            new_data[key] = torch.zeros((len(valid_dataset), self.validation_step_outputs[0][key].shape[-1]))
+
+        for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
+            # save the outputs of the encoder as a new dataset
+            validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
+            start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
+            end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
+            for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
+                try:
+                    new_data[key][start:end] = val.detach().cpu()
+                except:
+                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+        
+        # save the new dataset as a pt file in hydra run dir or working directory
+        log.info(f"Saving the encoded validation dataset of length {len(new_data[key])} at: {os.getcwd()}")
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_valid.pt"))
+        self.validation_step_outputs.clear()
+
+        return
+

@@ -27,6 +27,25 @@ class BasePl(pl.LightningModule):
             # Overriding the hyper-parameters of a checkpoint at an arbitrary depth using a dict structure
             hparams_overrides = self.hparams.pop("hparams_overrides")
             update(self.hparams, hparams_overrides)
+
+        self.penalty_criterion = self.hparams.penalty_criterion
+        if self.penalty_criterion["minmax"]:
+            # self.penalty_loss = penalty_loss_minmax
+            self.loss_transform = self.hparams.loss_transform
+        # elif self.penalty_criterion:
+        #     # self.penalty_loss = penalty_loss_stddev
+        if self.penalty_criterion["domain_classification"]:
+            # self.penalty_loss = penalty_domain_classification
+            from models.modules.multinomial_logreg import LogisticRegressionModel
+            from torch import nn
+            self.multinomial_logistic_regression = LogisticRegressionModel(self.z_dim_invariant_model, self.num_domains)
+            self.multinomial_logistic_regression = self.multinomial_logistic_regression.to(self.device)
+            self.domain_classification_loss = nn.CrossEntropyLoss()
+        # else:
+        #     raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
+        self.stddev_threshold = self.hparams.stddev_threshold
+        self.stddev_eps = self.hparams.stddev_eps
+        self.hinge_loss_weight = self.hparams.hinge_loss_weight
     
     def configure_optimizers(self):
 
