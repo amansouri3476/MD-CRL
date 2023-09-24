@@ -10,22 +10,22 @@ encoder_fc:
     Linear1:
       _target_: torch.nn.Linear
       in_features: ${datamodule.x_dim}
-      out_features: ${floor_div:${datamodule.x_dim},2}
-      bias: True
-    ReLU1:
-      _target_: ${model.autoencoder.activation}
-    Linear2:
-      _target_: torch.nn.Linear
-      in_features: ${floor_div:${datamodule.x_dim},2}
-      out_features: ${floor_div:${datamodule.x_dim},4}
-      bias: True
-    ReLU2:
-      _target_: ${model.autoencoder.activation}
-    Linear3:
-      _target_: torch.nn.Linear
-      in_features: ${floor_div:${datamodule.x_dim},4}
       out_features: ${model.autoencoder.latent_dim}
       bias: True
+    # ReLU1:
+    #   _target_: ${model.autoencoder.activation}
+    # Linear2:
+    #   _target_: torch.nn.Linear
+    #   in_features: ${floor_div:${datamodule.x_dim},2}
+    #   out_features: ${floor_div:${datamodule.x_dim},4}
+    #   bias: True
+    # ReLU2:
+    #   _target_: ${model.autoencoder.activation}
+    # Linear3:
+    #   _target_: torch.nn.Linear
+    #   in_features: ${floor_div:${datamodule.x_dim},4}
+    #   out_features: ${model.autoencoder.latent_dim}
+    #   bias: True
     # ReLU3:
     #   _target_: ${model.autoencoder.activation}
 
@@ -34,22 +34,22 @@ decoder_fc:
   _target_: models.modules.mlp_ae.Decoder
 
   decoder_layers:
-    Linear1:
-      _target_: torch.nn.Linear
-      in_features: ${model.autoencoder.latent_dim}
-      out_features: ${floor_div:${datamodule.x_dim},4}
-      bias: True
-    ReLU1:
-      _target_: ${model.autoencoder.activation}
-    Linear2:
-      _target_: torch.nn.Linear
-      in_features: ${floor_div:${datamodule.x_dim},4}
-      out_features: ${floor_div:${datamodule.x_dim},2}
-      bias: True
-    ReLU2:
-      _target_: ${model.autoencoder.activation}
+    # Linear1:
+    #   _target_: torch.nn.Linear
+    #   in_features: ${model.autoencoder.latent_dim}
+    #   out_features: ${floor_div:${datamodule.x_dim},4}
+    #   bias: True
+    # ReLU1:
+    #   _target_: ${model.autoencoder.activation}
+    # Linear2:
+    #   _target_: torch.nn.Linear
+    #   in_features: ${floor_div:${datamodule.x_dim},4}
+    #   out_features: ${floor_div:${datamodule.x_dim},2}
+    #   bias: True
+    # ReLU2:
+    #   _target_: ${model.autoencoder.activation}
     Linear3:
       _target_: torch.nn.Linear
-      in_features: ${floor_div:${datamodule.x_dim},2}
+      in_features: ${model.autoencoder.latent_dim}
       out_features: ${datamodule.x_dim}
       bias: True

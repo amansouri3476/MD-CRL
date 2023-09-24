@@ -8,7 +8,7 @@ import os
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
 import utils.general as utils
 log = utils.get_logger(__name__)
-from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss
+from models.utils import penalty_loss_minmax, penalty_loss_stddev, penalty_domain_classification, hinge_loss
 
 
 class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
@@ -26,13 +26,20 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         self.wait_steps = self.hparams.wait_steps
         self.linear_steps = self.hparams.linear_steps
         self.penalty_criterion = self.hparams.penalty_criterion
-        if self.penalty_criterion == "minmax":
-            self.penalty_loss = penalty_loss_minmax
+        if self.penalty_criterion["minmax"]:
+            # self.penalty_loss = penalty_loss_minmax
             self.loss_transform = self.hparams.loss_transform
-        elif self.penalty_criterion == "stddev":
-            self.penalty_loss = penalty_loss_stddev
-        else:
-            raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
+        # elif self.penalty_criterion:
+        #     # self.penalty_loss = penalty_loss_stddev
+        if self.penalty_criterion["domain_classification"]:
+            # self.penalty_loss = penalty_domain_classification
+            from models.modules.multinomial_logreg import LogisticRegressionModel
+            from torch import nn
+            self.multinomial_logistic_regression = LogisticRegressionModel(self.z_dim_invariant_model, self.num_domains)
+            self.multinomial_logistic_regression = self.multinomial_logistic_regression.to(self.device)
+            self.domain_classification_loss = nn.CrossEntropyLoss()
+        # else:
+        #     raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
         self.stddev_threshold = self.hparams.stddev_threshold
         self.stddev_eps = self.hparams.stddev_eps
         self.hinge_loss_weight = self.hparams.hinge_loss_weight
@@ -42,12 +49,31 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
     def loss(self, x, x_hat, z_hat, domains):
 
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
-        if self.penalty_criterion == "minmax":
-            penalty_loss_args = [self.hparams.top_k, self.loss_transform, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        else:
-            penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        penalty_loss_value, hinge_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-        loss = reconstruction_loss + penalty_loss_value * self.penalty_weight
+        penalty_loss_value = 0.0
+        hinge_loss_value = hinge_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
+
+        if self.penalty_criterion["minmax"]:
+            penalty_loss_args = [self.hparams.top_k, self.loss_transform]
+            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion["stddev"]:
+            penalty_loss_args = []
+            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion["domain_classification"]:
+            penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
+            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        # if self.penalty_criterion == "minmax":
+        #     penalty_loss_args = [self.hparams.top_k, self.loss_transform, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
+        # elif self.penalty_criterion == "stddev":
+        #     penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
+        # else: # domain_classification
+        #     penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
+        # penalty_loss_value, hinge_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+        penalty_loss_value = penalty_loss_value * self.penalty_weight
+        hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
+        loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
 
         return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
 
@@ -64,9 +90,9 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         # z: [batch_size, latent_dim]
         # x_hat: [batch_size, z_dim]
         z_hat, x_hat = self(x)
-        if batch_idx % 50 == 0:
-            print(f"x.max(): {x.max()}, x_hat.max(): {x_hat.max()}, x.min(): {x.min()}, x_hat.min(): {x_hat.min()}, x.mean(): {x.mean()}, x_hat.mean(): {x_hat.mean()}")
-            print(f"z_hat.max(): {z_hat.max()}, z_hat.min(): {z_hat.min()}, z_hat.mean(): {z_hat.mean()}")
+        if batch_idx % 20 == 0:
+            log.info(f"x.max(): {x.max()}, x_hat.max(): {x_hat.max()}, x.min(): {x.min()}, x_hat.min(): {x_hat.min()}, x.mean(): {x.mean()}, x_hat.mean(): {x_hat.mean()}")
+            log.info(f"z_hat.max(): {z_hat.max()}, z_hat.min(): {z_hat.min()}, z_hat.mean(): {z_hat.mean()}")
         loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domains)
         self.log(f"train_reconstruction_loss", reconstruction_loss.item())
         self.log(f"train_penalty_loss", penalty_loss_value.item())
@@ -83,18 +109,21 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         # x_hat: [batch_size, x_dim]
         z_hat, x_hat = self(x)
 
-        if batch_idx % 50 == 0:
-            if self.penalty_criterion == "minmax":
+        if batch_idx % 20 == 0:
+            if self.penalty_criterion["minmax"] == 1.:
                 # print all z_hat mins of all domains
-                print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                log.info(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 # print all z_hat maxs of all domains
-                print(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
-                print(f"============== ============== ============== ==============\n")
-            elif self.penalty_criterion == "stddev":
+                log.info(f"============== z_hat max all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].max().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                log.info(f"============== ============== ============== ==============\n")
+            if self.penalty_criterion["stddev"] == 1.:
                 # print all z_hat stds of all domains for each of z_dim_invariant dimensions
                 for dim in range(self.z_dim_invariant_model):
-                    print(f"============== z_hat std all domains dim {dim} ==============\n{[z_hat[(domain == i).squeeze(), dim].std().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
-                print(f"============== ============== ============== ==============\n")
+                    log.info(f"============== z_hat std all domains dim {dim} ==============\n{[z_hat[(domain == i).squeeze(), dim].std().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
+                log.info(f"============== ============== ============== ==============\n")
+            if self.penalty_criterion["domain_classification"] == 1.:
+                # log the weigth matrix of the multinomial logistic regression model
+                log.info(f"============== multinomial logistic regression model weight matrix ==============\n{self.multinomial_logistic_regression.linear.weight}\n")
 
 
         from sklearn.linear_model import LogisticRegression, LinearRegression

@@ -19,22 +19,26 @@ job:
     override_dirname:
       exclude_keys:
         - ckpt_path
+        - run_path
         - datamodule
         - datamodule.batch_size
         - logger.wandb.tags
         - model.optimizer
+        - model.penalty_criterion
         - model.pl_model_ckpt_path
         - model.additional_logger.logging_interval
         - model.linear_steps
         - model.wait_steps
         - model/optimizer
         - model/scheduler_config
+        - model.scheduler_config.scheduler_dict.monitor
         - model
         - callbacks
         - callbacks.model_checkpoint.monitor
         - callbacks.early_stopping
         - callbacks.visualization_callback
         - trainer.max_epochs
+        - trainer.accelerator
         # - model.optimizer.lr
         # - model.z_dim=5
 

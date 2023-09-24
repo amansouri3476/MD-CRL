@@ -114,8 +114,9 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
                 mse_mins += torch.log(F.l1_loss(domain_z_mins[i], domain_z_mins[j], reduction="none")).mean()
                 mse_maxs += torch.log(F.l1_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="none")).mean()
 
-    hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args[2:])
-    return (mse_mins + mse_maxs) + hinge_loss_value, hinge_loss_value
+    # hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args[2:])
+    # return (mse_mins + mse_maxs) + hinge_loss_value, hinge_loss_value
+    return (mse_mins + mse_maxs)
 
 def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):
     
@@ -142,8 +143,9 @@ def penalty_loss_stddev(z, domains, num_domains, z_dim_invariant, *args):
             for k in range(j+1, num_domains):
                 mse_stddev[i] += F.mse_loss(domain_z_invariant_stddev[j, i], domain_z_invariant_stddev[k, i], reduction="mean")
 
-    hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args)
-    return mse_stddev.sum() + hinge_loss_value, hinge_loss_value
+    # hinge_loss_value = hinge_loss(z, domains, num_domains, z_dim_invariant, *args)
+    # return mse_stddev.sum() + hinge_loss_value, hinge_loss_value
+    return mse_stddev.sum()
 
 
 def hinge_loss(z, domains, num_domains, z_dim_invariant, *args):
@@ -168,4 +170,17 @@ def hinge_loss(z, domains, num_domains, z_dim_invariant, *args):
         # take its mean over z_dim_invariant dimensions
         variance_reg[domain_idx] = variance_reg[domain_idx] / z_dim_invariant
 
-    return variance_reg.sum() * hinge_loss_weight
+    return variance_reg.sum() # * hinge_loss_weight
+
+def penalty_domain_classification(z, domains, num_domains, z_dim_invariant, *args):
+
+    multinomial_logistic_regression_model = args[0]
+    classification_loss = args[1]
+    pred_domains_log_proba = multinomial_logistic_regression_model(z[:, :z_dim_invariant])
+    domain_classification_loss = classification_loss(pred_domains_log_proba, domains.squeeze().long()).to(z.device)
+
+    # we want to return a penalty, i.e., a positive number. So we return the negative cross entropy loss
+    # so that the model tries to increase the cross entropy loss as much as possible, resulting in z_inv
+    # not being predictive of domain as much as possible
+    return -domain_classification_loss
+    # return torch.tensor(-domain_classification_loss, device=z.device).unsqueeze(0), 0.

@@ -69,6 +69,10 @@ decoder_cnn:
       kernel_size: 4
       stride: 2
       padding: 1
+    
+    BN1:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose1.out_channels}
 
     LeakyReLU1:
       _target_: torch.nn.LeakyReLU
@@ -80,6 +84,10 @@ decoder_cnn:
       kernel_size: 4
       stride: 2
       padding: 1
+    
+    BN2:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose2.out_channels}
 
     LeakyReLU2:
       _target_: torch.nn.LeakyReLU
@@ -91,6 +99,10 @@ decoder_cnn:
       kernel_size: 4
       stride: 2
       padding: 1
+
+    BN3:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose3.out_channels}
 
     LeakyReLU3:
       _target_: torch.nn.LeakyReLU
