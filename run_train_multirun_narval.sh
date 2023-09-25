@@ -22,6 +22,7 @@ export LD_PRELOAD=/home/aminm/mechanism-based-disentanglement/disentanglement_by
 
 # python run_training.py ckpt_path=null trainer.accelerator='cpu' model.optimizer.lr=0.001,0.0001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=64,128 model.z_dim_invariant_fraction=0.2,0.5,0.8 model.hinge_loss_weight=0.0,0.01,0.1 model.penalty_criterion="minmax" model.penalty_weight=1.0,0.1 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded-sweep"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/aminm/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-09-19_14-03-08" ckpt_path=null --multirun
 
+# gold standard
 python run_training.py ckpt_path=null trainer.accelerator='cpu' model.optimizer.lr=0.001,0.0001 datamodule=balls_encoded model=balls_md_encoded_autoencoder model.z_dim=64,128 model.z_dim_invariant_fraction=0.2,0.5,0.8 model.hinge_loss_weight=0.0,0.01,0.1 model.penalty_criterion="minmax" model.penalty_weight=1.0,0.1 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["narval","balls-encoded-sweep","resnet-bn"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/aminm/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-09-19_16-57-50" ckpt_path=null --multirun
 
 # ------------------------------------------------------------------------------------- #

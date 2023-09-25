@@ -20,31 +20,6 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         super().__init__(**kwargs)
         self.save_hyperparameters(logger=False)
 
-    def loss(self, x, x_hat, z_hat, domains):
-
-        reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
-        penalty_loss_value = torch.tensor(0.0, device=self.device)
-        hinge_loss_value = hinge_loss(z_hat, domains, self.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
-
-        if self.penalty_criterion["minmax"]:
-            penalty_loss_args = [self.top_k, self.loss_transform]
-            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-            penalty_loss_value += penalty_loss_value_
-        if self.penalty_criterion["stddev"]:
-            penalty_loss_args = []
-            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-            penalty_loss_value += penalty_loss_value_
-        if self.penalty_criterion["domain_classification"]:
-            penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
-            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-            penalty_loss_value += penalty_loss_value_
-
-        penalty_loss_value = penalty_loss_value * self.penalty_weight
-        hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
-        loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
-
-        return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
-
     def on_training_start(self, *args, **kwargs):
         self.log(f"val_reconstruction_loss", 0.0)
         self.log(f"valid_penalty_loss", 0.0)
@@ -143,28 +118,29 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         self.log(f"~z_norm", z_norm, prog_bar=True)
 
         # compute the regression scores with MLPRegressor
+        hidden_layer_size = z_hat.shape[1]
 
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
         r2_score = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
         self.log(f"r2_mlpreg", r2_score, prog_bar=True)
 
         # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
         r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
         self.log(f"hz_z_r2_mlpreg", r2_score, prog_bar=True)
 
         # 2. predicting z[:z_dim_invariant] from z_hat[z_dim_invariant:]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
         r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
         self.log(f"~hz_z_r2_mlpreg", r2_score, prog_bar=True)
 
         # 3. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
         r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
         self.log(f"hz_~z_r2_mlpreg", r2_score, prog_bar=False)
 
         # 4. predicting z[z_dim_invariant:] from z_hat[z_dim_invariant:]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
         r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
         self.log(f"~hz_~z_r2_mlpreg", r2_score, prog_bar=False)
 
@@ -185,6 +161,24 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         pred_domain = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
         self.log(f"~hz_domain_acc", acc, prog_bar=True)
+
+        # compute domain classification accuracy with MLPClassifier for z_hat, z_invariant, z_spurious
+        clf = MLPClassifier(random_state=0, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat.detach().cpu().numpy(), domain.detach().cpu().numpy())
+        pred_domain = clf.predict(z_hat.detach().cpu().numpy())
+        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+        self.log(f"domain_acc_mlp", acc, prog_bar=True)
+
+        # domain prediction from zhat z_dim_invariant dimensions
+        clf = MLPClassifier(random_state=0, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), domain.detach().cpu().numpy())
+        pred_domain = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+        self.log(f"hz_domain_acc_mlp", acc, prog_bar=True)
+
+        # domain prediction from zhat z_dim_spurious dimensions
+        clf = MLPClassifier(random_state=0, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), domain.detach().cpu().numpy())
+        pred_domain = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+        self.log(f"~hz_domain_acc_mlp", acc, prog_bar=True)
 
 
         loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domain)

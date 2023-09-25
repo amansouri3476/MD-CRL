@@ -6,7 +6,7 @@ defaults:
   - additional_logger: null # reconstruction_logger
 
 
-top_k: 10
+top_k: 5
 num_domains: ${datamodule.num_domains}
 z_dim: ${datamodule.x_dim}
 z_dim_invariant_fraction: 0.5

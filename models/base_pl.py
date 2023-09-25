@@ -3,6 +3,8 @@ from models.utils import update
 import torch
 import hydra
 from omegaconf import OmegaConf
+from torch.nn import functional as F
+from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss, penalty_domain_classification
 
 class BasePl(pl.LightningModule):
     """
@@ -32,7 +34,7 @@ class BasePl(pl.LightningModule):
         self.num_domains = self.hparams.get("num_domains", 4)
         self.z_dim_invariant_model = self.hparams.get("z_dim_invariant", 4)
 
-        self.penalty_criterion = self.hparams.get("penalty_criterion", {"minmax": 1., "stddev": 0., "domain_classification": 0.})
+        self.penalty_criterion = self.hparams.get("penalty_criterion", {"minmax": 0., "stddev": 0., "domain_classification": 0.})
         if self.penalty_criterion and self.penalty_criterion["minmax"]:
             # self.penalty_loss = penalty_loss_minmax
             self.loss_transform = self.hparams.get("loss_transform", "mse")
@@ -51,6 +53,31 @@ class BasePl(pl.LightningModule):
         self.stddev_threshold = self.hparams.get("stddev_threshold", 0.1)
         self.stddev_eps = self.hparams.get("stddev_eps", 1e-4)
         self.hinge_loss_weight = self.hparams.get("hinge_loss_weight", 0.0)
+
+    def loss(self, x, x_hat, z_hat, domains):
+
+        # x, x_hat: [batch_size, x_dim]
+        reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
+        penalty_loss_value = torch.tensor(0., device=self.device)
+        hinge_loss_value = hinge_loss(z_hat, domains, self.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight) if self.hinge_loss_weight > 0. else torch.tensor(0., device=x.device)
+
+        if self.penalty_criterion and self.penalty_criterion["minmax"]:
+            penalty_loss_args = [self.top_k, self.loss_transform]
+            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion and self.penalty_criterion["stddev"]:
+            penalty_loss_args = []
+            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion and self.penalty_criterion["domain_classification"]:
+            penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
+            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        
+        penalty_loss_value = penalty_loss_value * self.penalty_weight
+        hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
+        loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
+        return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
     
     def configure_optimizers(self):
 

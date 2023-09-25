@@ -7,7 +7,6 @@ from omegaconf import OmegaConf
 import os
 import wandb
 from utils.disentanglement_utils import linear_disentanglement, permutation_disentanglement
-from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss, penalty_domain_classification
 import utils.general as utils
 log = utils.get_logger(__name__)
 
@@ -51,32 +50,6 @@ class MixingAutoencoderPL(BasePl):
 
     def forward(self, x):
         return self.model(x)
-
-    def loss(self, x, x_hat, z_hat, domains):
-
-        # x, x_hat: [batch_size, x_dim]
-        reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
-        penalty_loss_value = torch.tensor(0., device=x.device)
-        
-        hinge_loss_value = hinge_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight) if self.hinge_loss_weight > 0. else torch.tensor(0., device=x.device)
-
-        if self.penalty_criterion and self.penalty_criterion["minmax"]:
-            penalty_loss_args = [self.hparams.top_k, self.loss_transform]
-            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-            penalty_loss_value += penalty_loss_value_
-        if self.penalty_criterion and self.penalty_criterion["stddev"]:
-            penalty_loss_args = []
-            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-            penalty_loss_value += penalty_loss_value_
-        if self.penalty_criterion and self.penalty_criterion["domain_classification"]:
-            penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
-            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
-            penalty_loss_value += penalty_loss_value_
-        
-        penalty_loss_value = penalty_loss_value * self.penalty_weight
-        hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
-        loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
-        return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
 
     def training_step(self, train_batch, batch_idx):
 
