@@ -263,7 +263,7 @@ class MixingAutoencoderPL(BasePl):
 
         # save the new dataset as a pt file in hydra run dir or working directory
         log.info(f"Saving the encoded training dataset of length {len(new_data[key])} at: {os.getcwd()}")
-        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_train.pt"))
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_{self.trainer.datamodule.datamodule_name}_train.pt"))
         self.training_step_outputs.clear()
 
         return
@@ -303,7 +303,7 @@ class MixingAutoencoderPL(BasePl):
         
         # save the new dataset as a pt file in hydra run dir or working directory
         log.info(f"Saving the encoded validation dataset of length {len(new_data[key])} at: {os.getcwd()}")
-        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_img_{self.trainer.datamodule.datamodule_name}_valid.pt"))
+        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_{self.trainer.datamodule.datamodule_name}_valid.pt"))
         self.validation_step_outputs.clear()
 
         return

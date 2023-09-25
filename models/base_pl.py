@@ -29,6 +29,9 @@ class BasePl(pl.LightningModule):
             hparams_overrides = self.hparams.pop("hparams_overrides")
             update(self.hparams, hparams_overrides)
 
+        self.num_domains = self.hparams.get("num_domains", 4)
+        self.z_dim_invariant_model = self.hparams.get("z_dim_invariant", 4)
+
         self.penalty_criterion = self.hparams.get("penalty_criterion", {"minmax": 1., "stddev": 0., "domain_classification": 0.})
         if self.penalty_criterion and self.penalty_criterion["minmax"]:
             # self.penalty_loss = penalty_loss_minmax

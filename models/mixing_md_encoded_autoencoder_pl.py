@@ -11,7 +11,7 @@ log = utils.get_logger(__name__)
 from models.utils import penalty_loss_minmax, penalty_loss_stddev, penalty_domain_classification, hinge_loss
 
 
-class MixingMDEncodedAutoencoderPL(BallsAutoencoderPL):
+class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
     def __init__(
         self,
         top_k: int = 5,
@@ -19,58 +19,26 @@ class MixingMDEncodedAutoencoderPL(BallsAutoencoderPL):
     ):
         super().__init__(**kwargs)
         self.save_hyperparameters(logger=False)
-        
-        self.num_domains = self.hparams.num_domains
-        self.z_dim_invariant_model = self.hparams.z_dim_invariant
-        self.penalty_weight = self.hparams.penalty_weight
-        self.wait_steps = self.hparams.wait_steps
-        self.linear_steps = self.hparams.linear_steps
-        self.penalty_criterion = self.hparams.penalty_criterion
-        if self.penalty_criterion["minmax"]:
-            # self.penalty_loss = penalty_loss_minmax
-            self.loss_transform = self.hparams.loss_transform
-        # elif self.penalty_criterion:
-        #     # self.penalty_loss = penalty_loss_stddev
-        if self.penalty_criterion["domain_classification"]:
-            # self.penalty_loss = penalty_domain_classification
-            from models.modules.multinomial_logreg import LogisticRegressionModel
-            from torch import nn
-            self.multinomial_logistic_regression = LogisticRegressionModel(self.z_dim_invariant_model, self.num_domains)
-            self.multinomial_logistic_regression = self.multinomial_logistic_regression.to(self.device)
-            self.domain_classification_loss = nn.CrossEntropyLoss()
-        # else:
-        #     raise ValueError(f"penalty_criterion {self.penalty_criterion} not supported")
-        self.stddev_threshold = self.hparams.stddev_threshold
-        self.stddev_eps = self.hparams.stddev_eps
-        self.hinge_loss_weight = self.hparams.hinge_loss_weight
-        # assert that the z_dim of this model is less than that of its encoder
-        # assert self.hparams.z_dim <= self.model.encoder_fc.hparams.latent_dim, f"z_dim of this model ({self.hparams.z_dim}) is greater than that of its encoder ({self.model.encoder_fc.hparams.latent_dim})"
 
     def loss(self, x, x_hat, z_hat, domains):
 
         reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
-        penalty_loss_value = 0.0
-        hinge_loss_value = hinge_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
+        penalty_loss_value = torch.tensor(0.0, device=self.device)
+        hinge_loss_value = hinge_loss(z_hat, domains, self.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight)
 
         if self.penalty_criterion["minmax"]:
-            penalty_loss_args = [self.hparams.top_k, self.loss_transform]
-            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_args = [self.top_k, self.loss_transform]
+            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
             penalty_loss_value += penalty_loss_value_
         if self.penalty_criterion["stddev"]:
             penalty_loss_args = []
-            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
             penalty_loss_value += penalty_loss_value_
         if self.penalty_criterion["domain_classification"]:
             penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
-            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value_ = penalty_domain_classification(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
             penalty_loss_value += penalty_loss_value_
-        # if self.penalty_criterion == "minmax":
-        #     penalty_loss_args = [self.hparams.top_k, self.loss_transform, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        # elif self.penalty_criterion == "stddev":
-        #     penalty_loss_args = [self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight]
-        # else: # domain_classification
-        #     penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]
-        # penalty_loss_value, hinge_loss_value = self.penalty_loss(z_hat, domains, self.hparams.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+
         penalty_loss_value = penalty_loss_value * self.penalty_weight
         hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
         loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
@@ -103,7 +71,7 @@ class MixingMDEncodedAutoencoderPL(BallsAutoencoderPL):
 
     def validation_step(self, valid_batch, batch_idx):
         # images: [batch_size, num_channels, width, height]
-        x, z_invariant, z_spurious, domain, color = valid_batch["x"], valid_batch["z_invariant"], valid_batch["z_spurious"], valid_batch["domain"], valid_batch["color"]
+        x, z, domain = valid_batch["x"], valid_batch["z"], valid_batch["domain"]
 
         # z_hat: [batch_size, latent_dim]
         # x_hat: [batch_size, x_dim]
@@ -128,41 +96,44 @@ class MixingMDEncodedAutoencoderPL(BallsAutoencoderPL):
 
         from sklearn.linear_model import LogisticRegression, LinearRegression
         from sklearn.metrics import accuracy_score, r2_score
+        from sklearn.neural_network import MLPClassifier, MLPRegressor
+        # self.z_dim_invariant_data = self.trainer.datamodule.train_dataset.z_dim_invariant
+        self.z_dim_invariant_data = self.z_dim_invariant_model
 
         # fit a linear regression from z_hat to z
         z = valid_batch["z"] # [batch_size, n_balls * z_dim_ball]
         clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
         pred_z = clf.predict(z_hat.detach().cpu().numpy())
         r2 = r2_score(z.detach().cpu().numpy(), pred_z)
-        self.log(f"z_hat_z_r2", r2, prog_bar=True)
+        self.log(f"r2_linreg", r2, prog_bar=True)
 
         # fit a linear regression from z_hat invariant dims to z_invariant dimensions
         # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
+        clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         pred_z_invariant = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), pred_z_invariant)
-        self.log(f"z_hat_inv_z_inv_r2", r2, prog_bar=True)
+        r2 = r2_score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), pred_z_invariant)
+        self.log(f"hz_z_r2_linreg", r2, prog_bar=True)
         
         # fit a linear regression from z_hat invariant dims to z_spurious dimensions
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
+        clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         pred_z_spurious = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), pred_z_spurious)
-        self.log(f"z_hat_inv_z_spur_r2", r2, prog_bar=True)
+        r2 = r2_score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), pred_z_spurious)
+        self.log(f"hz_~z_r2_linreg", r2, prog_bar=True)
         
         # fit a linear regression from z_hat spurious dims to z_invariant dimensions
         # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
+        clf = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         pred_z_invariant = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), pred_z_invariant)
-        self.log(f"z_hat_spur_z_inv_r2", r2, prog_bar=True)
+        r2 = r2_score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), pred_z_invariant)
+        self.log(f"~hz_z_r2_linreg", r2, prog_bar=False)
         
         # fit a linear regression from z_hat spurious dims to z_spurious dimensions
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
+        clf = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         pred_z_spurious = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), pred_z_spurious)
-        self.log(f"z_hat_spur_z_spur_r2", r2, prog_bar=True)
+        r2 = r2_score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), pred_z_spurious)
+        self.log(f"~hz_~z_r2_linreg", r2, prog_bar=False)
 
         # comptue the average norm of first z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
@@ -170,6 +141,50 @@ class MixingMDEncodedAutoencoderPL(BallsAutoencoderPL):
         # comptue the average norm of the last n-z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
         self.log(f"~z_norm", z_norm, prog_bar=True)
+
+        # compute the regression scores with MLPRegressor
+
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        r2_score = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        self.log(f"r2_mlpreg", r2_score, prog_bar=True)
+
+        # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        self.log(f"hz_z_r2_mlpreg", r2_score, prog_bar=True)
+
+        # 2. predicting z[:z_dim_invariant] from z_hat[z_dim_invariant:]
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        self.log(f"~hz_z_r2_mlpreg", r2_score, prog_bar=True)
+
+        # 3. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        self.log(f"hz_~z_r2_mlpreg", r2_score, prog_bar=False)
+
+        # 4. predicting z[z_dim_invariant:] from z_hat[z_dim_invariant:]
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        self.log(f"~hz_~z_r2_mlpreg", r2_score, prog_bar=False)
+
+        # compute domain classification accuracy with multinoimal logistic regression for z_hat, z_invariant, z_spurious
+        clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat.detach().cpu().numpy(), domain.detach().cpu().numpy())
+        pred_domain = clf.predict(z_hat.detach().cpu().numpy())
+        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+        self.log(f"domain_acc", acc, prog_bar=True)
+
+        # domain prediction from zhat z_dim_invariant dimensions
+        clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), domain.detach().cpu().numpy())
+        pred_domain = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+        self.log(f"hz_domain_acc", acc, prog_bar=True)
+
+        # domain prediction from zhat spurious dimensions
+        clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), domain.detach().cpu().numpy())
+        pred_domain = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
+        self.log(f"~hz_domain_acc", acc, prog_bar=True)
 
 
         loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domain)

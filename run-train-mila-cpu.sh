@@ -2,14 +2,13 @@
 
 #SBATCH --partition=long
 #SBATCH --cpus-per-task=4
-#SBATCH --gres=gpu:1
 #SBATCH --mem=30G
-#SBATCH --time=02:59:00
-#SBATCH --output=./slurm_out/%j.out
-#SBATCH --error=./slurm_err/%j.err
+#SBATCH --time=03:59:00
+#SBATCH --output=./slurm_out/mdcrl-%j.out
+#SBATCH --error=./slurm_err/mdcrl-%j.err
 
 module load miniconda/3
-conda activate bb
+conda activate mdcrl
 
 export WANDB_API_KEY=1406ef3255ef2806f2ecc925a5e845e7164b5eef
 wandb login
@@ -41,7 +40,7 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # ------------------------------------------------------------------------------------- #
 # ----------------------------------- Just reconstruction ----------------------------- #
 
-python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=poly_ae model.optimizer.lr=0.001 datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 datamodule.batch_size=512 datamodule.dataset.z_dim=6 model.z_dim=6 datamodule.dataset.num_domains=8 datamodule.dataset.x_dim=200 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing"]
+python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=poly_ae model.optimizer.lr=0.001 datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 datamodule.batch_size=64 datamodule.dataset.z_dim=6 model.z_dim=6 datamodule.dataset.num_domains=8 datamodule.dataset.x_dim=200 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing"]
 # ------------------------------------------------------------------------------------- #
 # ------------------------------------- Disentanglement ------------------------------- #
 
@@ -85,5 +84,5 @@ python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=p
 
 # python run_training.py trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model.optimizer.lr=0.001 datamodule=mnist_encoded model=mnist_md_encoded_autoencoder model/autoencoder=mlp_ae_mnist_nc model.z_dim=256 model.z_dim_invariant_fraction=0.9 model.hinge_loss_weight=0.0 model.penalty_criterion="minmax" model.penalty_weight=1.0 model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","log"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_multi_domain_mnist_8_256/2023-09-09_07-59-59"
 
-deactivate
+conda deactivate
 module purge

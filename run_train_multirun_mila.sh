@@ -157,6 +157,7 @@ python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=p
 # ------------------------------------------------------------------------------------- #
 # ------------------------------------- Disentanglement ------------------------------- #
 
+python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=512 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement"] run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_6/2023-09-24_13-57-37"
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #
 # ------------------------------------------------------------------------------------- #
