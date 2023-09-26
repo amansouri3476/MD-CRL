@@ -132,6 +132,19 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         domain_mask = domain_mask[indices]
         x_data = self.mixing_G(z_data)
 
+        if self.non_linearity == "polynomial":
+            # x_data: [n, poly_size]. Below we normalize and transform it to [n, x_dim]
+            x1 = torch.matmul(x_data[:, :1+self.z_dim], torch.tensor(self.coff_matrix[:1+self.z_dim, :], dtype=x_data.dtype))
+            # print('X1')
+            # print('Min', torch.min(torch.abs(x1)), 'Max', torch.max(torch.abs(x1)), 'Mean', torch.mean(torch.abs(x1)))
+
+            x2 = torch.matmul(x_data[:, 1+self.z_dim:], torch.tensor(self.coff_matrix[1+self.z_dim:, :], dtype=x_data.dtype))
+            norm_factor = 0.5 * torch.max(torch.abs(x2)) / torch.max(torch.abs(x1)) 
+            x2 = x2 / norm_factor
+            # print('X2')
+            # print('Min', torch.min(torch.abs(x2)), 'Max', torch.max(torch.abs(x2)), 'Mean', torch.mean(torch.abs(x2)))
+            x_data = (x1+x2)
+
         return x_data, z_data, domain_mask
 
     def __getitem__(self, idx):
@@ -160,14 +173,14 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
 
                 poly_size = compute_total_polynomial_terms(self.polynomial_degree, self.z_dim)
                 # Generate random coefficients for the polynomial
-                coff_matrix = np.random.multivariate_normal(np.zeros(poly_size), np.eye(poly_size), size=self.x_dim).T
+                self.coff_matrix = np.random.multivariate_normal(np.zeros(poly_size), np.eye(poly_size), size=self.x_dim).T
 
                 from functools import partial
                 self.G = partial(compute_decoder_polynomial, self.polynomial_degree)
 
                 # Define the polynomial function using lambda
-                # return lambda z: np.matmul(self.G(z.squeeze()), coff_matrix)
-                return lambda z: torch.tensor(np.concatenate(list(map(lambda idx: np.matmul(self.G(z[idx, :]), coff_matrix), range(z.shape[0]))), axis=0), dtype=torch.float32)
+                # return lambda z: torch.tensor(np.concatenate(list(map(lambda idx: np.matmul(self.G(z[idx, :]), self.coff_matrix), range(z.shape[0]))), axis=0), dtype=torch.float32)
+                return lambda z: torch.tensor(np.concatenate(list(map(lambda idx: self.G(z[idx, :]), range(z.shape[0]))), axis=0), dtype=torch.float32)
                 
 
             elif self.non_linearity == "mlp":

@@ -1,5 +1,6 @@
 dataset_target: datamodule.mixing_dataset.SyntheticMixingDataset
 
+# dataset_name: synthetic_mixing_lin_${datamodule.dataset.linear}_nd${datamodule.dataset.num_domains}_z${datamodule.dataset.z_dim}_p${datamodule.dataset.polynomial_degree}
 dataset_name: synthetic_mixing
 generation_strategy: "auto" # "auto", "manual"
 num_domains: 4

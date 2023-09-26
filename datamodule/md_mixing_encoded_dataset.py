@@ -18,7 +18,7 @@ class MixingMultiDomainEncodedDataset(torch.utils.data.Dataset):
 
         self.split = kwargs.get("split", "train")
         self.num_domains = num_domains
-        self.path_to_files = kwargs.get("data_dir", None)
+        self.path_to_files = kwargs.get("data_dir", None)        
         self.data = torch.load(os.path.join(self.path_to_files, f"encoded_synthetic_mixing_{self.split}.pt"))
 
         # find the min and max of self.data["z_hat"] and normalize it accordingly

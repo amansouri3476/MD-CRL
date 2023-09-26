@@ -179,8 +179,12 @@ def penalty_domain_classification(z, domains, num_domains, z_dim_invariant, *arg
     pred_domains_log_proba = multinomial_logistic_regression_model(z[:, :z_dim_invariant])
     domain_classification_loss = classification_loss(pred_domains_log_proba, domains.squeeze().long()).to(z.device)
 
+    # compute the classification accuracy
+    pred_domains = torch.argmax(pred_domains_log_proba, dim=1)
+    domain_classification_accuracy = (pred_domains == domains.squeeze().long()).sum().float() / pred_domains.shape[0]
+
     # we want to return a penalty, i.e., a positive number. So we return the negative cross entropy loss
     # so that the model tries to increase the cross entropy loss as much as possible, resulting in z_inv
     # not being predictive of domain as much as possible
-    return -domain_classification_loss
+    return -domain_classification_loss, domain_classification_accuracy
     # return torch.tensor(-domain_classification_loss, device=z.device).unsqueeze(0), 0.

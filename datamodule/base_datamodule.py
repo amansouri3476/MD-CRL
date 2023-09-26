@@ -121,12 +121,12 @@ class BaseDataModule(LightningDataModule):
             # self.test_dataset = torch.load(os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
 
         if self.save_dataset:
-            # torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.dataset_name}_{self.num_samples['train']}.pt"))
-            # torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.dataset_name}_{self.num_samples['valid']}.pt"))
-            # torch.save(self.test_dataset, os.path.join(self.path_to_files, f"test_dataset_{self.dataset_name}_{self.num_samples['test']}.pt"))
-            torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
-            torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
-            log.info(f"Saving the whole dataset files to {self.path_to_files}\ntrain_dataset length: {len(self.train_dataset)}\nvalid_dataset length: {len(self.valid_dataset)}")
+            # torch.save(self.train_dataset, os.path.join(self.path_to_files, f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
+            # torch.save(self.valid_dataset, os.path.join(self.path_to_files, f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
+            # log.info(f"Saving the whole dataset files to {self.path_to_files}\ntrain_dataset length: {len(self.train_dataset)}\nvalid_dataset length: {len(self.valid_dataset)}")
+            torch.save(self.train_dataset, os.path.join(os.getcwd(), f"train_dataset_{self.datamodule_name}_{len(self.train_dataset)}.pt"))
+            torch.save(self.valid_dataset, os.path.join(os.getcwd(), f"valid_dataset_{self.datamodule_name}_{len(self.valid_dataset)}.pt"))
+            log.info(f"Saving the whole dataset files to {os.getcwd()}\ntrain_dataset length: {len(self.train_dataset)}\nvalid_dataset length: {len(self.valid_dataset)}")
 
     def setup(self, stage=None):
         """

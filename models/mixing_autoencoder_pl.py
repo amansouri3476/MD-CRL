@@ -41,6 +41,7 @@ class MixingAutoencoderPL(BasePl):
 
         self.num_domains = self.hparams.get("num_domains", 4)
         self.z_dim_invariant_model = self.hparams.get("z_dim_invariant", 2)
+        self.save_encoded_data = self.hparams.get("save_encoded_data", False)
         self.penalty_weight = self.hparams.get("penalty_weight", 1.0)
         self.wait_steps = int(self.hparams.get("wait_steps", 0))
         self.linear_steps = int(self.hparams.get("linear_steps", 1))
@@ -55,6 +56,8 @@ class MixingAutoencoderPL(BasePl):
 
         # x: [batch_size, x_dim]
         x, z, domain = train_batch["x"], train_batch["z"], train_batch["domain"]
+
+        # if not self.domain_classification_flag:
 
         # z: [batch_size, latent_dim]
         # x_hat: [batch_size, x_dim]
@@ -75,9 +78,12 @@ class MixingAutoencoderPL(BasePl):
         self.log(f"train_hinge_loss", hinge_loss_value.item())
         self.log(f"train_loss", loss.item(), prog_bar=True)
 
-        self.training_step_outputs.append({"z_hat":z_hat})
+        if self.save_encoded_data:
+            self.training_step_outputs.append({"z_hat":z_hat})
 
         return loss
+        # else:
+        #     self.manual_adversarial_training_step(x, domain, batch_idx)
 
     def validation_step(self, valid_batch, batch_idx):
 
@@ -151,32 +157,32 @@ class MixingAutoencoderPL(BasePl):
         r2_score = reg.score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"val_~hz_~z_r2_linreg", r2_score, prog_bar=True)
 
-        # compute all of the above regression scores with MLPRegressor
-        from sklearn.neural_network import MLPRegressor
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        r2_score = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        self.log(f"val_r2_mlpreg", r2_score, prog_bar=True)
+        # # compute all of the above regression scores with MLPRegressor
+        # from sklearn.neural_network import MLPRegressor
+        # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        # r2_score = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        # self.log(f"val_r2_mlpreg", r2_score, prog_bar=True)
 
-        # we have 4 linear regression tasks:
-        # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        self.log(f"val_hz_z_r2_mlpreg", r2_score, prog_bar=True)
+        # # we have 4 linear regression tasks:
+        # # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
+        # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        # r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        # self.log(f"val_hz_z_r2_mlpreg", r2_score, prog_bar=True)
 
-        # 2. predicting z[:z_dim_invariant] from z_hat[z_dim_invariant:]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        self.log(f"val_~hz_z_r2_mlpreg", r2_score, prog_bar=True)
+        # # 2. predicting z[:z_dim_invariant] from z_hat[z_dim_invariant:]
+        # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        # r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        # self.log(f"val_~hz_z_r2_mlpreg", r2_score, prog_bar=True)
 
-        # 3. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        self.log(f"val_hz_~z_r2_mlpreg", r2_score, prog_bar=True)
+        # # 3. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
+        # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        # r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        # self.log(f"val_hz_~z_r2_mlpreg", r2_score, prog_bar=True)
 
-        # 4. predicting z[z_dim_invariant:] from z_hat[z_dim_invariant:]
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        self.log(f"val_~hz_~z_r2_mlpreg", r2_score, prog_bar=True)
+        # # 4. predicting z[z_dim_invariant:] from z_hat[z_dim_invariant:]
+        # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=z_hat.shape[1], activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        # r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        # self.log(f"val_~hz_~z_r2_mlpreg", r2_score, prog_bar=True)
 
         # comptue the average norm of first z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
@@ -204,80 +210,88 @@ class MixingAutoencoderPL(BasePl):
             self.log(f"val_hinge_loss", 0.0)
         self.log(f"val_loss", loss.item(), prog_bar=True)
 
-        self.validation_step_outputs.append({"z_hat":z_hat})
+        if self.save_encoded_data:
+            self.validation_step_outputs.append({"z_hat":z_hat})
 
         return {"loss": loss}
     
     def on_train_epoch_end(self):
 
-        # load the train dataset, and replace its "x" key with the new_data["z_hat"] key
-        # and save it as a pt file
-        train_dataset = torch.load(os.path.join(self.trainer.datamodule.path_to_files, f"train_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['train']-self.trainer.datamodule.num_samples['valid']}.pt"))
-        new_data = dict.fromkeys(train_dataset.data[0].keys())
+        if self.save_encoded_data:
+            # load the train dataset, and replace its "x" key with the new_data["z_hat"] key
+            # and save it as a pt file
+            import os
+            # train_dataset = torch.load(os.path.join(self.trainer.datamodule.path_to_files, f"train_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['train']-self.trainer.datamodule.num_samples['valid']}.pt"))
+            train_dataset = torch.load(os.path.join(os.getcwd(), f"train_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['train']-self.trainer.datamodule.num_samples['valid']}.pt"))
+            new_data = dict.fromkeys(train_dataset.data[0].keys())
 
-        # stack the values of each key in the new_data dict
-        # new_data is a list of dicts
-        for key in new_data.keys():
-            new_data[key] = torch.stack([torch.tensor(train_dataset.data[i][key]) for i in range(len(train_dataset))], dim=0)
-        new_data.pop("x", None)
-        for key in self.training_step_outputs[0].keys():
-            new_data[key] = torch.zeros((len(train_dataset), self.training_step_outputs[0][key].shape[-1]))
+            # stack the values of each key in the new_data dict
+            # new_data is a list of dicts
+            for key in new_data.keys():
+                new_data[key] = torch.stack([torch.tensor(train_dataset.data[i][key]) for i in range(len(train_dataset))], dim=0)
+            new_data.pop("x", None)
+            for key in self.training_step_outputs[0].keys():
+                new_data[key] = torch.zeros((len(train_dataset), self.training_step_outputs[0][key].shape[-1]))
 
-        for batch_idx, training_step_output in enumerate(self.training_step_outputs):
-            # save the outputs of the encoder as a new dataset
-            training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
-            start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
-            end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
-            for key, val in zip(training_step_output.keys(), training_step_output.values()):
-                try:
-                    new_data[key][start:end] = val.detach().cpu()
-                except:
-                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+            for batch_idx, training_step_output in enumerate(self.training_step_outputs):
+                # save the outputs of the encoder as a new dataset
+                training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
+                start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
+                end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
+                for key, val in zip(training_step_output.keys(), training_step_output.values()):
+                    try:
+                        new_data[key][start:end] = val.detach().cpu()
+                    except:
+                        new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
 
-        # save the new dataset as a pt file in hydra run dir or working directory
-        log.info(f"Saving the encoded training dataset of length {len(new_data[key])} at: {os.getcwd()}")
-        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_{self.trainer.datamodule.datamodule_name}_train.pt"))
-        self.training_step_outputs.clear()
+            # save the new dataset as a pt file in hydra run dir or working directory
+            log.info(f"Saving the encoded training dataset of length {len(new_data[key])} at: {os.getcwd()}")
+            torch.save(new_data, os.path.join(os.getcwd(), f"encoded_{self.trainer.datamodule.datamodule_name}_train.pt"))
+            self.training_step_outputs.clear()
 
         return
     
     def on_validation_epoch_end(self):
 
-        # load the valid dataset, and replace its "image" key with the new_data["z_hat"] key
-        # and save it as a pt file
-        try:
-            path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
-            valid_dataset = torch.load(path).dataset
-            log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
-        except:
-            path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
-            valid_dataset = torch.load(path)
-            log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
-        new_data = dict.fromkeys(valid_dataset.data[0].keys())
+        if self.save_encoded_data:
+            # load the valid dataset, and replace its "image" key with the new_data["z_hat"] key
+            # and save it as a pt file
+            import os
+            try:
+                # path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+                path = os.path.join(os.getcwd(), f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+                valid_dataset = torch.load(path).dataset
+                log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
+            except:
+                # path = os.path.join(self.trainer.datamodule.path_to_files, f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+                path = os.path.join(os.getcwd(), f"valid_dataset_{self.trainer.datamodule.datamodule_name}_{self.trainer.datamodule.num_samples['valid']}.pt")
+                valid_dataset = torch.load(path)
+                log.info(f"Loaded the validation dataset of length {len(valid_dataset)} from: {path}")
+            new_data = dict.fromkeys(valid_dataset.data[0].keys())
 
-        # stack the values of each key in the new_data dict
-        # new_data is a list of dicts
-        for key in new_data.keys():
-            new_data[key] = torch.stack([torch.tensor(valid_dataset.data[i][key]) for i in range(len(valid_dataset))], dim=0)
-        new_data.pop("x", None)
-        for key in self.validation_step_outputs[0].keys():
-            new_data[key] = torch.zeros((len(valid_dataset), self.validation_step_outputs[0][key].shape[-1]))
+            # stack the values of each key in the new_data dict
+            # new_data is a list of dicts
+            for key in new_data.keys():
+                new_data[key] = torch.stack([torch.tensor(valid_dataset.data[i][key]) for i in range(len(valid_dataset))], dim=0)
+            new_data.pop("x", None)
+            for key in self.validation_step_outputs[0].keys():
+                new_data[key] = torch.zeros((len(valid_dataset), self.validation_step_outputs[0][key].shape[-1]))
 
-        for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
-            # save the outputs of the encoder as a new dataset
-            validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
-            start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
-            end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
-            for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
-                try:
-                    new_data[key][start:end] = val.detach().cpu()
-                except:
-                    new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
-        
-        # save the new dataset as a pt file in hydra run dir or working directory
-        log.info(f"Saving the encoded validation dataset of length {len(new_data[key])} at: {os.getcwd()}")
-        torch.save(new_data, os.path.join(os.getcwd(), f"encoded_{self.trainer.datamodule.datamodule_name}_valid.pt"))
-        self.validation_step_outputs.clear()
+            for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
+                # save the outputs of the encoder as a new dataset
+                validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
+                start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
+                end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
+                for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
+                    try:
+                        new_data[key][start:end] = val.detach().cpu()
+                    except:
+                        new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+            
+            # save the new dataset as a pt file in hydra run dir or working directory
+            log.info(f"Saving the encoded validation dataset of length {len(new_data[key])} at: {os.getcwd()}")
+            torch.save(new_data, os.path.join(os.getcwd(), f"encoded_{self.trainer.datamodule.datamodule_name}_valid.pt"))
+            self.validation_step_outputs.clear()
 
         return
 

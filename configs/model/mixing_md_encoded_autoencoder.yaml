@@ -49,6 +49,16 @@ autoencoder:
         _target_: torch.nn.Linear
         in_features: ${model.autoencoder.latent_dim}
         out_features: ${model.autoencoder.latent_dim}
+      # LeakyReLU1:
+      #   _target_: torch.nn.LeakyReLU
+      #   negative_slope: 0.5
+      # Linear2:
+      #   _target_: torch.nn.Linear
+      #   in_features: ${model.autoencoder.latent_dim}
+      #   out_features: ${model.autoencoder.latent_dim}
+      # LeakyReLU2:
+      #   _target_: torch.nn.LeakyReLU
+      #   negative_slope: 0.5
       
   decoder_fc:
     _target_: models.modules.mlp_ae.Decoder
@@ -58,5 +68,15 @@ autoencoder:
         _target_: torch.nn.Linear
         in_features: ${model.autoencoder.latent_dim}
         out_features: ${model.autoencoder.latent_dim}
+      # LeakyReLU1:
+      #   _target_: torch.nn.LeakyReLU
+      #   negative_slope: 0.5
+      # Linear2:
+      #   _target_: torch.nn.Linear
+      #   in_features: ${model.autoencoder.latent_dim}
+      #   out_features: ${model.autoencoder.latent_dim}
+      # LeakyReLU2:
+      #   _target_: torch.nn.LeakyReLU
+      #   negative_slope: 0.5
 
-logging_name: "autoencoder_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}"
+logging_name: "autoencoder_${datamodule.datamodule_name}_${model.autoencoder.latent_dim}_domains_${datamodule.dataset.num_domains}"

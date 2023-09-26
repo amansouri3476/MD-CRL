@@ -6,6 +6,7 @@ defaults:
   - autoencoder: linear_ae_synthetic # options:
   - additional_logger: null # reconstruction_logger
 
+save_encoded_data: True
 
 top_k: 5
 num_domains: ${datamodule.dataset.num_domains}
@@ -36,4 +37,4 @@ autoencoder_ckpt_path: ${retrieve_encoder_state_dict:${model.pl_model_ckpt_path}
 autoencoder_freeze: False
 
 
-logging_name: "autoencoder_${datamodule.datamodule_name}_linear_${datamodule.dataset.linear}_${datamodule.dataset.num_domains}_${datamodule.dataset.z_dim}"
+logging_name: "autoencoder_${datamodule.datamodule_name}_linear_${datamodule.dataset.linear}_${datamodule.dataset.num_domains}_${datamodule.dataset.z_dim}_p${datamodule.dataset.polynomial_degree}"
