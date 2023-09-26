@@ -79,37 +79,27 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
 
         # fit a linear regression from z_hat to z
         z = valid_batch["z"] # [batch_size, n_balls * z_dim_ball]
-        reg = LinearRegression().fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        pred_z = reg.predict(z_hat.detach().cpu().numpy())
-        r2 = r2_score(z.detach().cpu().numpy(), pred_z)
+        r2 = r2_score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
         self.log(f"r2_linreg", r2, prog_bar=True)
 
         # fit a linear regression from z_hat invariant dims to z_invariant dimensions
         # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        reg = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
-        pred_z_invariant = reg.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), pred_z_invariant)
+        r2 = r2_score(z_invariant.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"hz_z_r2_linreg", r2, prog_bar=True)
         
         # fit a linear regression from z_hat invariant dims to z_spurious dimensions
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        reg = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
-        pred_z_spurious = reg.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), pred_z_spurious)
+        r2 = r2_score(z_spurious.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"hz_~z_r2_linreg", r2, prog_bar=True)
         
         # fit a linear regression from z_hat spurious dims to z_invariant dimensions
         # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        reg = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
-        pred_z_invariant = reg.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), pred_z_invariant)
+        r2 = r2_score(z_invariant.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_z_r2_linreg", r2, prog_bar=False)
         
         # fit a linear regression from z_hat spurious dims to z_spurious dimensions
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        reg = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
-        pred_z_spurious = reg.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), pred_z_spurious)
+        r2 = r2_score(z_spurious.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_~z_r2_linereg", r2, prog_bar=False)
 
         # comptue the average norm of first z_dim dimensions of z
@@ -123,28 +113,28 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         hidden_layer_size = z_hat.shape[1]
 
         # fit a MLP regression from z_hat to z
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        r2_score = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        r2_score = reg.score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
         self.log(f"r2_mlpreg", r2_score, prog_bar=True)
 
         # fit a MLP regression from z_hat invariant dims to z_invariant dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_invariant.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        r2_score = reg.score(z_invariant.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"hz_z_r2_mlpreg", r2_score, prog_bar=True)
 
         # fit a MLP regression from z_hat invariant dims to z_spurious dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_spurious.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        r2_score = reg.score(z_spurious.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"hz_~z_r2_mlpreg", r2_score, prog_bar=True)
 
         # fit a MLP regression from z_hat spurious dims to z_invariant dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_invariant.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        r2_score = reg.score(z_invariant.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_z_r2_mlpreg", r2_score, prog_bar=False)
 
         # fit a MLP regression from z_hat spurious dims to z_spurious dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
-        r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
+        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_spurious.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        r2_score = reg.score(z_spurious.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_~z_r2_mlpreg", r2_score, prog_bar=False)
 
         # compute domain classification accuracy with multinoimal logistic regression for z_hat, z_invariant, z_spurious

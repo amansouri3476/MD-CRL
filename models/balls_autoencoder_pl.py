@@ -102,32 +102,24 @@ class BallsAutoencoderPL(BasePl):
         
         # fit a linear regression from z_hat to z
         z = valid_batch["z"] # [batch_size, n_balls * z_dim_ball]
-        clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        pred_z = clf.predict(z_hat.detach().cpu().numpy())
-        r2 = r2_score(z.detach().cpu().numpy(), pred_z)
-        self.log(f"z_hat_z_r2", r2, prog_bar=True)
+        r2 = r2_score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        self.log(f"hz_z_r2", r2, prog_bar=True)
 
         # fit a linear regression from z_hat to z_invariant dimensions
         z_invariant = valid_batch["z_invariant"] # [batch_size, n_balls_invariant * z_dim_ball]
-        clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), z_invariant.detach().cpu().numpy())
-        pred_z_invariant = clf.predict(z_hat.detach().cpu().numpy())
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), pred_z_invariant)
-        self.log(f"z_hat_z_inv_r2", r2, prog_bar=True)
+        r2 = r2_score(z_invariant.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        self.log(f"hz_z_r2", r2, prog_bar=True)
         
         # fit a linear regression from z_hat to z_spurious dimensions
         z_spurious = valid_batch["z_spurious"] # [batch_size, n_balls_spurious * z_dim_ball]
-        clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), z_spurious.detach().cpu().numpy())
-        pred_z_spurious = clf.predict(z_hat.detach().cpu().numpy())
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), pred_z_spurious)
-        self.log(f"z_hat_z_spur_r2", r2, prog_bar=True)
+        r2 = r2_score(z_spurious.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        self.log(f"hz_~z_r2", r2, prog_bar=True)
 
         # fit a linear regression from z to colours
         colors_ = valid_batch["color"] # valid_batch["color"]: [batch_size, n_balls_invariant + n_balls_spurious, 1]
         colors_ = colors_.reshape(colors_.shape[0], -1)
-        clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), colors_.detach().cpu().numpy())
-        pred_colors = clf.predict(z_hat.detach().cpu().numpy())
-        r2 = r2_score(colors_.detach().cpu().numpy(), pred_colors)
-        self.log(f"colors_r2", r2, prog_bar=True)
+        r2 = r2_score(colors_.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        self.log(f"hz_colors_r2", r2, prog_bar=True)
 
         self.validation_step_outputs.append({"z_hat":z_hat})
 

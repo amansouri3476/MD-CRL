@@ -76,42 +76,28 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         # self.z_dim_invariant_data = self.trainer.datamodule.train_dataset.z_dim_invariant
         self.z_dim_invariant_data = self.z_dim_invariant_model
 
-        # fit a linear regression from z_hat to z
-        clf = LinearRegression().fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        pred_z = clf.predict(z_hat.detach().cpu().numpy())
-        r2 = r2_score(z.detach().cpu().numpy(), pred_z)
-        # clf = LinearRegression().fit(x.detach().cpu().numpy(), z.detach().cpu().numpy())
-        # pred_z = clf.predict(x.detach().cpu().numpy())
-        # r2 = r2_score(z.detach().cpu().numpy(), pred_z)
-        self.log(f"r2_linreg", r2, prog_bar=True)
+        # fit a linear regression from z to z_hat
+        r2 = r2_score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        self.log(f"r2", r2, prog_bar=True)
 
-        # fit a linear regression from z_hat invariant dims to z_invariant dimensions
-        # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        pred_z_invariant = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2 = r2_score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), pred_z_invariant)
-        self.log(f"hz_z_r2_linreg", r2, prog_bar=True)
+        # fit a linear regression from z_invariant dimensions to z_hat invariant dims 
+        r2 = r2_score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        self.log(f"hz_z_r2", r2, prog_bar=True)
         
-        # fit a linear regression from z_hat invariant dims to z_spurious dimensions
+        # fit a linear regression from z_spurious dimensions to z_hat invariant dims 
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        pred_z_spurious = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2 = r2_score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), pred_z_spurious)
-        self.log(f"hz_~z_r2_linreg", r2, prog_bar=True)
+        r2 = r2_score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        self.log(f"hz_~z_r2", r2, prog_bar=True)
         
-        # fit a linear regression from z_hat spurious dims to z_invariant dimensions
+        # fit a linear regression from z_invariant dimensions to z_hat spurious dims 
         # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        pred_z_invariant = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2 = r2_score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), pred_z_invariant)
-        self.log(f"~hz_z_r2_linreg", r2, prog_bar=False)
+        r2 = r2_score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        self.log(f"~hz_z_r2", r2, prog_bar=False)
         
-        # fit a linear regression from z_hat spurious dims to z_spurious dimensions
+        # fit a linear regression from z_spurious dimensions to z_hat spurious dims
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        clf = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        pred_z_spurious = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2 = r2_score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), pred_z_spurious)
-        self.log(f"~hz_~z_r2_linreg", r2, prog_bar=False)
+        r2 = r2_score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        self.log(f"~hz_~z_r2", r2, prog_bar=False)
 
         # comptue the average norm of first z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
@@ -124,28 +110,28 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         # hidden_layer_size = z_hat.shape[1]
 
         # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        # r2_score = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
-        # self.log(f"r2_mlpreg", r2_score, prog_bar=True)
+        # r2 = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        # self.log(f"r2_mlpreg", r2, prog_bar=True)
 
         # # 1. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
         # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        # r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        # self.log(f"hz_z_r2_mlpreg", r2_score, prog_bar=True)
+        # r2 = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        # self.log(f"hz_z_r2_mlpreg", r2, prog_bar=True)
 
         # # 2. predicting z[:z_dim_invariant] from z_hat[z_dim_invariant:]
         # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        # r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
-        # self.log(f"~hz_z_r2_mlpreg", r2_score, prog_bar=True)
+        # r2 = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_data].detach().cpu().numpy())
+        # self.log(f"~hz_z_r2_mlpreg", r2, prog_bar=True)
 
         # # 3. predicting z[:z_dim_invariant] from z_hat[:z_dim_invariant]
         # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        # r2_score = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        # self.log(f"hz_~z_r2_mlpreg", r2_score, prog_bar=False)
+        # r2 = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        # self.log(f"hz_~z_r2_mlpreg", r2, prog_bar=False)
 
         # # 4. predicting z[z_dim_invariant:] from z_hat[z_dim_invariant:]
         # reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_size, activation='tanh').fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        # r2_score = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
-        # self.log(f"~hz_~z_r2_mlpreg", r2_score, prog_bar=False)
+        # r2 = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_data:].detach().cpu().numpy())
+        # self.log(f"~hz_~z_r2_mlpreg", r2, prog_bar=False)
 
         # compute domain classification accuracy with multinoimal logistic regression for z_hat, z_invariant, z_spurious
         clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat.detach().cpu().numpy(), domain.detach().cpu().numpy())
