@@ -127,24 +127,29 @@ class MixingAutoencoderPL(BasePl):
         from sklearn.metrics import accuracy_score, r2_score
         self.z_dim_invariant_data = self.trainer.datamodule.train_dataset.z_dim_invariant # type: ignore
 
-        r2 = r2_score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        reg = LinearRegression().fit(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
+        r2 = reg.score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
         self.log(f"r2", r2, prog_bar=True)
 
         # we have 4 linear regression tasks:
         # 1. predicting z_hat[:z_dim_invariant] from z[:z_dim_invariant]
-        r2 = r2_score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        reg = LinearRegression().fit(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        r2 = reg.score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"hz_z_r2", r2, prog_bar=True)
 
         # 2. predicting z_hat[z_dim_invariant:] from z[:z_dim_invariant]
-        r2 = r2_score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        reg = LinearRegression().fit(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        r2 = reg.score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_z_r2", r2, prog_bar=True)
 
         # 3. predicting z_hat[:z_dim_invariant] from z[z_dim_invariant:]
-        r2 = r2_score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        reg = LinearRegression().fit(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        r2 = reg.score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
         self.log(f"hz_~z_r2", r2, prog_bar=True)
 
         # 4. predicting z_hat[z_dim_invariant:] from z[z_dim_invariant:]
-        r2 = r2_score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        reg = LinearRegression().fit(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        r2 = reg.score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_~z_r2", r2, prog_bar=True)
 
         # # compute all of the above regression scores with MLPRegressor

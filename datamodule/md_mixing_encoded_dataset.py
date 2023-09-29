@@ -25,6 +25,10 @@ class MixingMultiDomainEncodedDataset(torch.utils.data.Dataset):
         self.z_hat_min = torch.min(self.data["z_hat"])
         self.z_hat_max = torch.max(self.data["z_hat"])
         self.data["z_hat"] = (((self.data["z_hat"] - self.z_hat_min) / (self.z_hat_max - self.z_hat_min)) - 0.5) * 2
+        
+        self.z_min = torch.min(self.data["z"])
+        self.z_max = torch.max(self.data["z"])
+        # self.data["z"] = (((self.data["z"] - self.z_min) / (self.z_max - self.z_min)) - 0.5) * 2
 
     def __getitem__(self, idx):
         return {"x": self.data["z_hat"][idx], "z": self.data["z"][idx], "domain": self.data["domain"][idx]}

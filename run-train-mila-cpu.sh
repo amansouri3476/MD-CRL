@@ -46,7 +46,7 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # ------------------------------------- Disentanglement ------------------------------- #
 
 # p=2, d=6
-python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=512 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement","fixed-reg"] run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_linear_False_8_6_p2/2023-09-25_18-02-22/"
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=512 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement","fixed-reg"] run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_linear_False_8_6_p2/2023-09-25_18-02-22/"
 # p=2, d=8
 # python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=512 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement","fixed-reg"] run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_linear_False_8_8_p2/2023-09-25_18-58-01/"
 # p=2, d=10
