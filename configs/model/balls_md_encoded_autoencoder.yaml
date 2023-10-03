@@ -17,7 +17,7 @@ z_dim_invariant: ${mult_int:${model.z_dim},${model.z_dim_invariant_fraction}}
 penalty_criterion:
   minmax: 1.
   stddev: 0.
-  domain_classification: 1.
+  domain_classification: 0.
 
 loss_transform: "mse"
 penalty_weight: 0.1

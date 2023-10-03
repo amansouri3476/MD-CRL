@@ -27,8 +27,13 @@ encoder_cnn:
         out_features: 128
         bias: False
 
+      BN1:
+        _target_: torch.nn.BatchNorm1d
+        num_features: ${model.autoencoder.encoder_cnn.encoder_layers.mlp_layers.fc1.out_features}
+
       fc1_nonlinearity:
         _target_: torch.nn.LeakyReLU 
+        negative_slope: 0.1
     
       fc2:
         _target_: torch.nn.Linear
@@ -36,6 +41,9 @@ encoder_cnn:
         out_features: ${model.autoencoder.latent_dim} # 64
         bias: False
 
+      BN2:
+        _target_: torch.nn.BatchNorm1d
+        num_features: ${model.autoencoder.encoder_cnn.encoder_layers.mlp_layers.fc2.out_features}
 
 decoder_cnn:
   _target_: models.modules.resnet_ae.Decoder
@@ -51,14 +59,26 @@ decoder_cnn:
         out_features: 128
         bias: False
 
+      BN1:
+        _target_: torch.nn.BatchNorm1d
+        num_features: ${model.autoencoder.decoder_cnn.mlp_layers.fc1.out_features}
+
       fc1_nonlinearity:
-        _target_: torch.nn.LeakyReLU 
+        _target_: torch.nn.LeakyReLU
+        negative_slope: 0.1
     
       fc2:
         _target_: torch.nn.Linear
         in_features: 128
         out_features: 1024 # 64x4x4
         bias: False
+      
+      BN2:
+        _target_: torch.nn.BatchNorm1d
+        num_features: ${model.autoencoder.decoder_cnn.mlp_layers.fc2.out_features}
+
+      fc2_nonlinearity:
+        _target_: torch.nn.LeakyReLU
 
   decoder_layers:
 

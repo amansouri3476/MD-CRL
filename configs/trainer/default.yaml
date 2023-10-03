@@ -12,7 +12,7 @@ max_epochs: 1000 # 1_000_000
 # max_steps: 200000
 # max_steps: 50000 # Disable it and use early stopping
 
-val_check_interval: 0.5 # if 1.0, only check validation set once per training epoch, 0.25, 4 times, 1000, every 1000 batches.
+val_check_interval: 1.0 # if 1.0, only check validation set once per training epoch, 0.25, 4 times, 1000, every 1000 batches.
 
 enable_model_summary: null
 # progress_bar_refresh_rate: 5 # deprecated in v 1.5

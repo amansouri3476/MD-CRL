@@ -6,6 +6,7 @@ defaults:
   - autoencoder: cnn_ae_balls # options: fc_ae_image, cnn_ae
   - additional_logger: null # reconstruction_logger
 
+save_encoded_data: True
 
 z_dim: 64
 

@@ -1,17 +1,25 @@
-dataset_target: datamodule.md_balls_encoded_dataset.BallsMultiDomainEncodedDataset
+_target_: datamodule.xz_datamodule.XZDataModule
+  
+dataset_name: xz
+datamodule_name: ${datamodule.dataset_name}
 
-dataset_name: multi_domain_balls_encoded_${datamodule.dataset.num_domains}
-num_domains: ${retrieve_num_domain:${run_path}}
-x_dim: ${datamodule.x_dim}
+
+data_dir: ${run_path}
+
+seed: ${seed}
+
+# Concerning the data_loaders
+batch_size: 1024
+num_workers: 6
+shuffle: False
+drop_last: False
 
 dataset_parameters:
   train:
     dataset:
-      _target_: ${datamodule.dataset.dataset_target}
       data_dir: ${datamodule.data_dir}
       split: "train"
       seed: ${datamodule.seed}
-      num_domains: ${datamodule.dataset.num_domains}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -21,11 +29,9 @@ dataset_parameters:
 
   valid:
     dataset:
-      _target_: ${datamodule.dataset.dataset_target}
       data_dir: ${datamodule.data_dir}
       split: "valid"
       seed: ${datamodule.seed}
-      num_domains: ${datamodule.dataset.num_domains}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -35,11 +41,9 @@ dataset_parameters:
 
   test:
     dataset:
-      _target_: ${datamodule.dataset.dataset_target}
       data_dir: ${datamodule.data_dir}
       split: "test"
       seed: ${datamodule.seed}
-      num_domains: ${datamodule.dataset.num_domains}
 
     dataloader:
       batch_size: ${datamodule.batch_size}

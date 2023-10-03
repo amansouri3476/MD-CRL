@@ -7,6 +7,9 @@ from torch.nn import functional as F
 from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss, penalty_domain_classification
 import utils.general as utils
 log = utils.get_logger(__name__)
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.metrics import accuracy_score
 
 
 class BasePl(pl.LightningModule):
@@ -81,6 +84,41 @@ class BasePl(pl.LightningModule):
         hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
         loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
         return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
+
+    def compute_r2(self, x, y):
+
+        reg = LinearRegression().fit(x.detach().cpu().numpy(), y.detach().cpu().numpy())
+        r2 = reg.score(x.detach().cpu().numpy(), y.detach().cpu().numpy())
+        # compute the mean squared error of the prediction
+        mse_loss = F.mse_loss(torch.tensor(reg.predict(x.detach().cpu().numpy()), device=x.device), y)
+        return r2, mse_loss
+    
+    def compute_r2_mlp(self, x, y, hidden_size=32, n_layers=2):
+
+        hidden_layer_sizes = tuple([hidden_size] * n_layers)
+        reg = MLPRegressor(random_state=1, max_iter=200, hidden_layer_sizes=hidden_layer_sizes, early_stopping=True).fit(x.detach().cpu().numpy(), y.detach().cpu().numpy())
+        r2 = reg.score(x.detach().cpu().numpy(), y.detach().cpu().numpy())
+        # compute the mean squared error of the prediction
+        mse_loss = F.mse_loss(torch.tensor(reg.predict(x.detach().cpu().numpy()), device=x.device), y)
+        # loss_ = reg.loss_
+        # r2 = reg.validation_scores_[-1]
+        # loss_ = reg.loss_curve_[-1]
+        return r2, mse_loss
+    
+    def compute_acc_logistic_regression(self, x, label):
+
+        clf = LogisticRegression(random_state=0, max_iter=500).fit(x.detach().cpu().numpy(), label.detach().cpu().numpy())
+        pred_label = clf.predict(x.detach().cpu().numpy())
+        acc = accuracy_score(label.detach().cpu().numpy(), pred_label)
+        return acc
+
+    def compute_acc_mlp(self, x, label, hidden_size=32, n_layers=2):
+
+        hidden_layer_sizes = tuple([hidden_size] * n_layers)
+        clf = MLPClassifier(random_state=1, max_iter=500, hidden_layer_sizes=hidden_layer_sizes).fit(x.detach().cpu().numpy(), label.detach().cpu().numpy())
+        pred_label = clf.predict(x.detach().cpu().numpy())
+        acc = accuracy_score(label.detach().cpu().numpy(), pred_label)
+        return acc
     
     def configure_optimizers(self):
 

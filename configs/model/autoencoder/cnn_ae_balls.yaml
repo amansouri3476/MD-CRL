@@ -21,6 +21,9 @@ encoder_cnn:
       stride: 2
       padding: 1
       # 3x64x64 --> out_channelsx32x32
+    BN1:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.encoder_cnn.encoder_layers.Conv1.out_channels}
     LeakyReLU1:
       _target_: torch.nn.LeakyReLU
     Conv2:
@@ -31,6 +34,9 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx32x32 --> out_channelsx16x16
+    BN2:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.encoder_cnn.encoder_layers.Conv2.out_channels}
     LeakyReLU2:
       _target_: torch.nn.LeakyReLU
     Conv3:
@@ -41,6 +47,9 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx16x16 --> out_channelsx8x8
+    BN3:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.encoder_cnn.encoder_layers.Conv3.out_channels}
     LeakyReLU3:
       _target_: torch.nn.LeakyReLU
     Conv4:
@@ -51,6 +60,9 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx8x8 --> out_channelsx4x4
+    BN4:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.encoder_cnn.encoder_layers.Conv4.out_channels}
     LeakyReLU4:
       _target_: torch.nn.LeakyReLU
     Conv5:
@@ -61,6 +73,9 @@ encoder_cnn:
       stride: 2
       padding: 1
       # in_channelsx4x4 --> out_channelsx2x2
+    BN5:
+      _target_: torch.nn.BatchNorm2d
+      num_features: ${model.autoencoder.encoder_cnn.encoder_layers.Conv5.out_channels}
     LeakyReLU5:
       _target_: torch.nn.LeakyReLU
     Conv6:

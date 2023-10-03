@@ -32,13 +32,14 @@ job:
         - model/optimizer
         - model/scheduler_config
         - model.scheduler_config.scheduler_dict.monitor
-        - model
+        # - model
         - callbacks
         - callbacks.model_checkpoint.monitor
         - callbacks.early_stopping
         - callbacks.visualization_callback
         - trainer.max_epochs
         - trainer.accelerator
+        - trainer.devices
         # - model.optimizer.lr
         # - model.z_dim=5
 

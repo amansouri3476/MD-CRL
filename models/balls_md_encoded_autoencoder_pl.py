@@ -24,6 +24,32 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         self.wait_steps = self.hparams.get("wait_steps", 0)
         self.linear_steps = self.hparams.get("linear_steps", 1)
 
+        self.save_encoded_data = self.hparams.get("save_encoded_data", True)
+        self.loaded_img_data = False
+        self.validation_step_outputs = []
+
+    def loss(self, x, x_hat, z_hat, domains):
+
+        # x, x_hat: [batch_size, x_dim]
+        reconstruction_loss = F.mse_loss(x_hat, x, reduction="mean")
+        penalty_loss_value = torch.tensor(0., device=self.device)
+        hinge_loss_value = hinge_loss(z_hat, domains, self.num_domains, self.z_dim_invariant_model, self.stddev_threshold, self.stddev_eps, self.hinge_loss_weight) if self.hinge_loss_weight > 0. else torch.tensor(0., device=x.device)
+
+        if self.penalty_criterion and self.penalty_criterion["minmax"]:
+            penalty_loss_args = [self.top_k, self.loss_transform]
+            penalty_loss_value_ = penalty_loss_minmax(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion and self.penalty_criterion["stddev"]:
+            penalty_loss_args = []
+            penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+
+        
+        penalty_loss_value = penalty_loss_value * self.penalty_weight
+        hinge_loss_value = hinge_loss_value * self.hinge_loss_weight
+        loss = reconstruction_loss + penalty_loss_value + hinge_loss_value
+        return loss, reconstruction_loss, penalty_loss_value, hinge_loss_value
+
     def on_training_start(self, *args, **kwargs):
         self.log(f"val_reconstruction_loss", 0.0)
         self.log(f"valid_penalty_loss", 0.0)
@@ -45,6 +71,9 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         self.log(f"train_penalty_loss", penalty_loss_value.item())
         self.log(f"train_hinge_loss", hinge_loss_value.item())
         self.log(f"train_loss", loss.item(), prog_bar=True)
+
+        if self.save_encoded_data:
+            self.training_step_outputs.append({"z_hat":z_hat})
 
         return loss
 
@@ -72,106 +101,125 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
                 # log the weigth matrix of the multinomial logistic regression model
                 log.info(f"============== multinomial logistic regression model weight matrix ==============\n{self.multinomial_logistic_regression.linear.weight}\n")
 
+        if batch_idx % 5 == 0:
+            # fit a linear regression from z_hat on z
+            z = valid_batch["z"] # [batch_size, n_balls * z_dim_ball]
+            r2, mse_loss = self.compute_r2(z, z_hat)
+            self.log(f"r2_linreg", r2, prog_bar=True)
+            self.log(f"mse_loss_linreg", mse_loss, prog_bar=True)
+            r2, mse_loss = self.compute_r2(z_hat, z)
+            self.log(f"~r2_linreg", r2, prog_bar=True)
+            self.log(f"~mse_loss_linreg", mse_loss, prog_bar=True)
 
-        from sklearn.linear_model import LogisticRegression, LinearRegression
-        from sklearn.metrics import accuracy_score, r2_score
-        from sklearn.neural_network import MLPClassifier, MLPRegressor
+            # fit a linear regression from z_hat invariant dims to z_invariant dimensions
+            # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
+            r2, mse_loss = self.compute_r2(z_invariant, z_hat[:, :self.z_dim_invariant_model])
+            self.log(f"hz_z_r2_linreg", r2, prog_bar=True)
+            self.log(f"hz_z_mse_loss_linreg", mse_loss, prog_bar=True)
+            r2, mse_loss = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_invariant)
+            self.log(f"hz_z_~r2_linreg", r2, prog_bar=True)
+            self.log(f"hz_z_~mse_loss_linreg", mse_loss, prog_bar=True)
 
-        # fit a linear regression from z_hat to z
-        z = valid_batch["z"] # [batch_size, n_balls * z_dim_ball]
-        r2 = r2_score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
-        self.log(f"r2_linreg", r2, prog_bar=True)
+            # fit a linear regression from z_hat invariant dims to z_spurious dimensions
+            # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
+            r2, mse_loss = self.compute_r2(z_spurious, z_hat[:, :self.z_dim_invariant_model])
+            self.log(f"hz_~z_r2_linreg", r2, prog_bar=True)
+            self.log(f"hz_~z_mse_loss_linreg", mse_loss, prog_bar=True)
+            r2, mse_loss = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_spurious)
+            self.log(f"hz_~z_~r2_linreg", r2, prog_bar=True)
+            self.log(f"hz_~z_~mse_loss_linreg", mse_loss, prog_bar=True)
 
-        # fit a linear regression from z_hat invariant dims to z_invariant dimensions
-        # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        self.log(f"hz_z_r2_linreg", r2, prog_bar=True)
-        
-        # fit a linear regression from z_hat invariant dims to z_spurious dimensions
-        # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        self.log(f"hz_~z_r2_linreg", r2, prog_bar=True)
-        
-        # fit a linear regression from z_hat spurious dims to z_invariant dimensions
-        # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
-        r2 = r2_score(z_invariant.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        self.log(f"~hz_z_r2_linreg", r2, prog_bar=False)
-        
-        # fit a linear regression from z_hat spurious dims to z_spurious dimensions
-        # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
-        r2 = r2_score(z_spurious.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        self.log(f"~hz_~z_r2_linereg", r2, prog_bar=False)
+            # fit a linear regression from z_hat spurious dims to z_invariant dimensions
+            # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
+            r2, mse_loss = self.compute_r2(z_invariant, z_hat[:, self.z_dim_invariant_model:])
+            self.log(f"~hz_z_r2_linreg", r2, prog_bar=True)
+            self.log(f"~hz_z_mse_loss_linreg", mse_loss, prog_bar=True)
+            r2, mse_loss = self.compute_r2(z_hat[:, self.z_dim_invariant_model:], z_invariant)
+            self.log(f"~hz_z_~r2_linreg", r2, prog_bar=True)
+            self.log(f"~hz_z_~mse_loss_linreg", mse_loss, prog_bar=True)
+            
+            # fit a linear regression from z_hat spurious dims to z_spurious dimensions
+            # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
+            r2, mse_loss = self.compute_r2(z_spurious, z_hat[:, self.z_dim_invariant_model:])
+            self.log(f"~hz_~z_r2_linreg", r2, prog_bar=True)
+            self.log(f"~hz_~z_mse_loss_linreg", mse_loss, prog_bar=True)
+            r2, mse_loss = self.compute_r2(z_hat[:, self.z_dim_invariant_model:], z_spurious)
+            self.log(f"~hz_~z_~r2_linreg", r2, prog_bar=True)
+            self.log(f"~hz_~z_~mse_loss_linreg", mse_loss, prog_bar=True)
 
-        # comptue the average norm of first z_dim dimensions of z
-        z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
-        self.log(f"z_norm", z_norm, prog_bar=False)
-        # comptue the average norm of the last n-z_dim dimensions of z
-        z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
-        self.log(f"~z_norm", z_norm, prog_bar=False)
+            # comptue the average norm of first z_dim dimensions of z
+            z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
+            self.log(f"z_norm", z_norm, prog_bar=False)
+            # comptue the average norm of the last n-z_dim dimensions of z
+            z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
+            self.log(f"~z_norm", z_norm, prog_bar=False)
 
-        # compute the regression scores with MLPRegressor
-        hidden_layer_size = z_hat.shape[1]
+            # compute the regression scores with MLPRegressor
+            hidden_layer_size = 400 # z_hat.shape[1]
 
-        # fit a MLP regression from z_hat to z
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
-        r2_score = reg.score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
-        self.log(f"r2_mlpreg", r2_score, prog_bar=True)
+            # fit a MLP regression from z_hat on z
+            # r2, reg_loss = self.compute_r2_mlp(z, z_hat, hidden_layer_size)
+            # self.log(f"r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"reg_loss_mlpreg", reg_loss, prog_bar=True)
+            # r2, reg_loss = self.compute_r2_mlp(z_hat, z, hidden_layer_size)
+            # self.log(f"~r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"~reg_loss_mlpreg", reg_loss, prog_bar=True)
 
-        # fit a MLP regression from z_hat invariant dims to z_invariant dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_invariant.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2_score = reg.score(z_invariant.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        self.log(f"hz_z_r2_mlpreg", r2_score, prog_bar=True)
+            # fit a MLP regression from z_hat invariant dims to z_invariant dimensions
+            # r2, reg_loss = self.compute_r2_mlp(z_invariant, z_hat[:, :self.z_dim_invariant_model], hidden_layer_size)
+            # self.log(f"hz_z_r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"hz_z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+            # r2, reg_loss = self.compute_r2_mlp(z_hat[:, :self.z_dim_invariant_model], z_invariant, hidden_layer_size)
+            # self.log(f"hz_z_~r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"hz_z_~reg_loss_mlpreg", reg_loss, prog_bar=True)
 
-        # fit a MLP regression from z_hat invariant dims to z_spurious dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_spurious.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        r2_score = reg.score(z_spurious.detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        self.log(f"hz_~z_r2_mlpreg", r2_score, prog_bar=True)
+            # # fit a MLP regression from z_hat invariant dims to z_spurious dimensions
+            # r2, reg_loss = self.compute_r2_mlp(z_spurious, z_hat[:, :self.z_dim_invariant_model], hidden_layer_size)
+            # self.log(f"hz_~z_r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"hz_~z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+            # r2, reg_loss = self.compute_r2_mlp(z_hat[:, :self.z_dim_invariant_model], z_spurious, hidden_layer_size)
+            # self.log(f"hz_~z_~reg_loss_mlpreg", r2, prog_bar=True)
+            # self.log(f"hz_~z_~r2_mlpreg", r2, prog_bar=True)
 
-        # fit a MLP regression from z_hat spurious dims to z_invariant dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_invariant.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2_score = reg.score(z_invariant.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        self.log(f"~hz_z_r2_mlpreg", r2_score, prog_bar=False)
+            # # fit a MLP regression from z_hat spurious dims to z_invariant dimensions
+            # r2, reg_loss = self.compute_r2_mlp(z_invariant, z_hat[:, self.z_dim_invariant_model:], hidden_layer_size)
+            # self.log(f"~hz_z_r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"~hz_z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+            # r2, reg_loss = self.compute_r2_mlp(z_hat[:, self.z_dim_invariant_model:], z_invariant, hidden_layer_size)
+            # self.log(f"~hz_z_~reg_loss_mlpreg", r2, prog_bar=True)
+            # self.log(f"~hz_z_~r2_mlpreg", r2, prog_bar=True)
 
-        # fit a MLP regression from z_hat spurious dims to z_spurious dimensions
-        reg = MLPRegressor(random_state=1, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_spurious.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        r2_score = reg.score(z_spurious.detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        self.log(f"~hz_~z_r2_mlpreg", r2_score, prog_bar=False)
+            # # fit a MLP regression from z_hat spurious dims to z_spurious dimensions
+            # r2, reg_loss = self.compute_r2_mlp(z_spurious, z_hat[:, self.z_dim_invariant_model:], hidden_layer_size)
+            # self.log(f"~hz_~z_r2_mlpreg", r2, prog_bar=True)
+            # self.log(f"~hz_~z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+            # r2, reg_loss = self.compute_r2_mlp(z_hat[:, self.z_dim_invariant_model:], z_spurious, hidden_layer_size)
+            # self.log(f"~hz_~z_~reg_loss_mlpreg", r2, prog_bar=True)
+            # self.log(f"~hz_~z_~r2_mlpreg", r2, prog_bar=True)
 
-        # compute domain classification accuracy with multinoimal logistic regression for z_hat, z_invariant, z_spurious
-        clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat.detach().cpu().numpy(), domain.detach().cpu().numpy())
-        pred_domain = clf.predict(z_hat.detach().cpu().numpy())
-        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
-        self.log(f"domain_acc_logreg", acc, prog_bar=True)
+            # compute domain classification accuracy with multinoimal logistic regression for z_hat, z_invariant, z_spurious
+            acc = self.compute_acc_logistic_regression(z_hat, domain)
+            self.log(f"domain_acc_logreg", acc, prog_bar=False)
 
-        # domain prediction from zhat z_dim_invariant dimensions
-        clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), domain.detach().cpu().numpy())
-        pred_domain = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
-        self.log(f"hz_domain_acc_logreg", acc, prog_bar=True)
+            # domain prediction from zhat z_dim_invariant dimensions
+            acc = self.compute_acc_logistic_regression(z_hat[:, :self.z_dim_invariant_model], domain)
+            self.log(f"hz_domain_acc_logreg", acc, prog_bar=True)
 
-        # domain prediction from zhat z_dim_spurious dimensions
-        clf = LogisticRegression(random_state=0, max_iter=500).fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), domain.detach().cpu().numpy())
-        pred_domain = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
-        self.log(f"~hz_domain_acc_logreg", acc, prog_bar=True)
+            # domain prediction from zhat z_dim_spurious dimensions
+            acc = self.compute_acc_logistic_regression(z_hat[:, self.z_dim_invariant_model:], domain)
+            self.log(f"~hz_domain_acc_logreg", acc, prog_bar=True)
 
-        # compute domain classification accuracy with MLPClassifier for z_hat, z_invariant, z_spurious
-        clf = MLPClassifier(random_state=0, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat.detach().cpu().numpy(), domain.detach().cpu().numpy())
-        pred_domain = clf.predict(z_hat.detach().cpu().numpy())
-        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
-        self.log(f"domain_acc_mlp", acc, prog_bar=True)
+            # compute domain classification accuracy with MLPClassifier for z_hat, z_invariant, z_spurious
+            # acc = self.compute_acc_mlp(z_hat, domain, hidden_layer_size)
+            # self.log(f"domain_acc_mlp", acc, prog_bar=False)
 
-        # domain prediction from zhat z_dim_invariant dimensions
-        clf = MLPClassifier(random_state=0, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), domain.detach().cpu().numpy())
-        pred_domain = clf.predict(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
-        self.log(f"hz_domain_acc_mlp", acc, prog_bar=True)
+            # # domain prediction from zhat z_dim_invariant dimensions
+            # acc = self.compute_acc_mlp(z_hat[:, :self.z_dim_invariant_model], domain, hidden_layer_size)
+            # self.log(f"hz_domain_acc_mlp", acc, prog_bar=False)
 
-        # domain prediction from zhat z_dim_spurious dimensions
-        clf = MLPClassifier(random_state=0, max_iter=500, hidden_layer_sizes=(hidden_layer_size, hidden_layer_size)).fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), domain.detach().cpu().numpy())
-        pred_domain = clf.predict(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        acc = accuracy_score(domain.detach().cpu().numpy(), pred_domain)
-        self.log(f"~hz_domain_acc_mlp", acc, prog_bar=True)
+            # # domain prediction from zhat z_dim_spurious dimensions
+            # acc = self.compute_acc_mlp(z_hat[:, self.z_dim_invariant_model:], domain, hidden_layer_size)
+            # self.log(f"~hz_domain_acc_mlp", acc, prog_bar=False)
 
 
         loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domain)
@@ -179,10 +227,210 @@ class BallsMDEncodedAutoencoderPL(BallsAutoencoderPL):
         self.log(f"val_penalty_loss", penalty_loss_value.item())
         self.log(f"val_hinge_loss", hinge_loss_value.item())
         self.log(f"val_loss", loss.item())
-        return {"loss": loss, "pred_z": z_hat}
+
+        if self.save_encoded_data:
+            self.validation_step_outputs.append({"z_hat":z_hat})
+
+        return loss
+
 
     def on_train_epoch_end(self):
-        pass
 
+        if self.save_encoded_data:
+            # load the train dataset, and replace its "image" key with the new_data["z_hat"] key
+            # and save it as a pt file
+
+            new_data = dict.fromkeys(self.train_dataset.keys())
+
+            # stack the values of each key in the new_data dict
+            # new_data is a list of dicts
+            for key in new_data.keys():
+                new_data[key] = self.train_dataset[key]
+            new_data.pop("z_hat", None)
+            for key in self.training_step_outputs[0].keys():
+                new_data[key] = torch.zeros((len(self.train_dataset[key]), self.training_step_outputs[0][key].shape[-1]))
+
+            for batch_idx, training_step_output in enumerate(self.training_step_outputs):
+                # save the outputs of the encoder as a new dataset
+                training_step_output_batch_size = list(training_step_output.values())[0].shape[0]
+                start = batch_idx * self.trainer.datamodule.train_dataloader().batch_size
+                end = start + min(self.trainer.datamodule.train_dataloader().batch_size, training_step_output_batch_size)
+                for key, val in zip(training_step_output.keys(), training_step_output.values()):
+                    try:
+                        new_data[key][start:end] = val.detach().cpu()
+                    except:
+                        new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+
+            # save the new dataset as a pt file in hydra run dir or working directory
+            log.info(f"Saving the encoded training dataset of length {len(new_data[key])} at: {os.getcwd()}")
+            torch.save(new_data, os.path.join(os.getcwd(), f"double_encoded_img_{self.trainer.datamodule.datamodule_name}_train.pt"))
+        self.training_step_outputs.clear()
+
+        return
+    
     def on_validation_epoch_end(self):
+
+        if self.save_encoded_data:
+            # load the valid dataset, and replace its "image" key with the new_data["z_hat"] key
+            # and save it as a pt file
+            if not self.loaded_img_data:
+                try:
+                    path = os.path.join(self.trainer.datamodule.path_to_files, f"encoded_img_md_balls_valid.pt")
+                    self.valid_dataset = torch.load(path).dataset
+                    log.info(f"Loaded the validation dataset of length {len(self.valid_dataset)} from: {path}")
+                    path = os.path.join(self.trainer.datamodule.path_to_files, f"encoded_img_md_balls_train.pt")
+                    self.train_dataset = torch.load(path).dataset
+                    log.info(f"Loaded the training dataset of length {len(self.train_dataset)} from: {path}")
+                except AttributeError:
+                    path = os.path.join(self.trainer.datamodule.path_to_files, f"encoded_img_md_balls_valid.pt")
+                    self.valid_dataset = torch.load(path)
+                    log.info(f"Loaded the training dataset of length {len(self.valid_dataset)} from: {path}")
+                    path = os.path.join(self.trainer.datamodule.path_to_files, f"encoded_img_md_balls_train.pt")
+                    self.train_dataset = torch.load(path)
+                    log.info(f"Loaded the training dataset of length {len(self.train_dataset)} from: {path}")
+                self.loaded_img_data = True
+
+            new_data = dict.fromkeys(self.valid_dataset.keys())
+
+            # stack the values of each key in the new_data dict
+            # new_data is a list of dicts
+            for key in new_data.keys():
+                new_data[key] = self.valid_dataset[key]
+            new_data.pop("z_hat", None)
+            for key in self.validation_step_outputs[0].keys():
+                new_data[key] = torch.zeros((len(self.valid_dataset[key]), self.validation_step_outputs[0][key].shape[-1]))
+            for batch_idx, validation_step_output in enumerate(self.validation_step_outputs):
+                # save the outputs of the encoder as a new dataset
+                validation_step_output_batch_size = list(validation_step_output.values())[0].shape[0]
+                start = batch_idx * self.trainer.datamodule.val_dataloader().batch_size
+                end = start + min(self.trainer.datamodule.val_dataloader().batch_size, validation_step_output_batch_size)
+                for key, val in zip(validation_step_output.keys(), validation_step_output.values()):
+                    try:
+                        new_data[key][start:end] = val.detach().cpu()
+                    except:
+                        new_data[key][start:end] = val.unsqueeze(-1).detach().cpu()
+            
+            # save the new dataset as a pt file in hydra run dir or working directory
+            log.info(f"Saving the encoded validation dataset of length {len(new_data[key])} at: {os.getcwd()}")
+            torch.save(new_data, os.path.join(os.getcwd(), f"double_encoded_img_{self.trainer.datamodule.datamodule_name}_valid.pt"))
+
+        # # concatenate all z_hat, z, z_invariant, z_spurious, domain
+        # z_hat = torch.cat([output["z_hat"] for output in self.validation_step_outputs], dim=0)
+        # z = torch.cat([output["z"] for output in self.validation_step_outputs], dim=0)
+        # z_invariant = torch.cat([output["z_invariant"] for output in self.validation_step_outputs], dim=0)
+        # z_spurious = torch.cat([output["z_spurious"] for output in self.validation_step_outputs], dim=0)
+        # domain = torch.cat([output["domain"] for output in self.validation_step_outputs], dim=0)
+
+        # # fit a linear regression from z_hat on z
+        # r2 = self.compute_r2(z, z_hat)
+        # self.log(f"r2_linreg", r2, prog_bar=True)
+        # r2 = self.compute_r2(z_hat, z)
+        # self.log(f"~r2_linreg", r2, prog_bar=True)
+
+        # # fit a linear regression from z_hat invariant dims to z_invariant dimensions
+        # # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
+        # r2 = self.compute_r2(z_invariant, z_hat[:, :self.z_dim_invariant_model])
+        # self.log(f"hz_z_r2_linreg", r2, prog_bar=True)
+        # r2 = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_invariant)
+        # self.log(f"hz_z_~r2_linreg", r2, prog_bar=True)
+
+        # # fit a linear regression from z_hat invariant dims to z_spurious dimensions
+        # # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
+        # r2 = self.compute_r2(z_spurious, z_hat[:, :self.z_dim_invariant_model])
+        # self.log(f"hz_~z_r2_linreg", r2, prog_bar=True)
+        # r2 = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_spurious)
+        # self.log(f"hz_~z_~r2_linreg", r2, prog_bar=True)
+
+        # # fit a linear regression from z_hat spurious dims to z_invariant dimensions
+        # # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
+        # r2 = self.compute_r2(z_invariant, z_hat[:, self.z_dim_invariant_model:])
+        # self.log(f"~hz_z_r2_linreg", r2, prog_bar=True)
+        # r2 = self.compute_r2(z_hat[:, self.z_dim_invariant_model:], z_invariant)
+        # self.log(f"~hz_z_~r2_linreg", r2, prog_bar=True)
+        
+        # # fit a linear regression from z_hat spurious dims to z_spurious dimensions
+        # # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
+        # r2 = self.compute_r2(z_spurious, z_hat[:, self.z_dim_invariant_model:])
+        # self.log(f"~hz_~z_r2_linreg", r2, prog_bar=True)
+        # r2 = self.compute_r2(z_hat[:, self.z_dim_invariant_model:], z_spurious)
+        # self.log(f"~hz_~z_~r2_linreg", r2, prog_bar=True)
+
+        # # comptue the average norm of first z_dim dimensions of z
+        # z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
+        # self.log(f"z_norm", z_norm, prog_bar=False)
+        # # comptue the average norm of the last n-z_dim dimensions of z
+        # z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
+        # self.log(f"~z_norm", z_norm, prog_bar=False)
+
+        # # compute the regression scores with MLPRegressor
+        # hidden_layer_size = 128 # z_hat.shape[1]
+
+        # # fit a MLP regression from z_hat on z
+        # r2, reg_loss = self.compute_r2_mlp(z, z_hat, hidden_layer_size)
+        # self.log(f"r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"reg_loss_mlpreg", reg_loss, prog_bar=True)
+        # r2, reg_loss = self.compute_r2_mlp(z_hat, z, hidden_layer_size)
+        # self.log(f"~r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"~reg_loss_mlpreg", reg_loss, prog_bar=True)
+
+        # # fit a MLP regression from z_hat invariant dims to z_invariant dimensions
+        # r2, reg_loss = self.compute_r2_mlp(z_invariant, z_hat[:, :self.z_dim_invariant_model], hidden_layer_size)
+        # self.log(f"hz_z_r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"hz_z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+        # r2, reg_loss = self.compute_r2_mlp(z_hat[:, :self.z_dim_invariant_model], z_invariant, hidden_layer_size)
+        # self.log(f"hz_z_~r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"hz_z_~reg_loss_mlpreg", reg_loss, prog_bar=True)
+
+        # # fit a MLP regression from z_hat invariant dims to z_spurious dimensions
+        # r2, reg_loss = self.compute_r2_mlp(z_spurious, z_hat[:, :self.z_dim_invariant_model], hidden_layer_size)
+        # self.log(f"hz_~z_r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"hz_~z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+        # r2, reg_loss = self.compute_r2_mlp(z_hat[:, :self.z_dim_invariant_model], z_spurious, hidden_layer_size)
+        # self.log(f"hz_~z_~reg_loss_mlpreg", r2, prog_bar=True)
+        # self.log(f"hz_~z_~r2_mlpreg", r2, prog_bar=True)
+
+        # # fit a MLP regression from z_hat spurious dims to z_invariant dimensions
+        # r2, reg_loss = self.compute_r2_mlp(z_invariant, z_hat[:, self.z_dim_invariant_model:], hidden_layer_size)
+        # self.log(f"~hz_z_r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"~hz_z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+        # r2, reg_loss = self.compute_r2_mlp(z_hat[:, self.z_dim_invariant_model:], z_invariant, hidden_layer_size)
+        # self.log(f"~hz_z_~reg_loss_mlpreg", r2, prog_bar=True)
+        # self.log(f"~hz_z_~r2_mlpreg", r2, prog_bar=True)
+
+        # # fit a MLP regression from z_hat spurious dims to z_spurious dimensions
+        # r2, reg_loss = self.compute_r2_mlp(z_spurious, z_hat[:, self.z_dim_invariant_model:], hidden_layer_size)
+        # self.log(f"~hz_~z_r2_mlpreg", r2, prog_bar=True)
+        # self.log(f"~hz_~z_reg_loss_mlpreg", reg_loss, prog_bar=True)
+        # r2, reg_loss = self.compute_r2_mlp(z_hat[:, self.z_dim_invariant_model:], z_spurious, hidden_layer_size)
+        # self.log(f"~hz_~z_~reg_loss_mlpreg", r2, prog_bar=True)
+        # self.log(f"~hz_~z_~r2_mlpreg", r2, prog_bar=True)
+
+        # # compute domain classification accuracy with multinoimal logistic regression for z_hat, z_invariant, z_spurious
+        # acc = self.compute_acc_logistic_regression(z_hat, domain)
+        # self.log(f"domain_acc_logreg", acc, prog_bar=False)
+
+        # # domain prediction from zhat z_dim_invariant dimensions
+        # acc = self.compute_acc_logistic_regression(z_hat[:, :self.z_dim_invariant_model], domain)
+        # self.log(f"hz_domain_acc_logreg", acc, prog_bar=True)
+
+        # # domain prediction from zhat z_dim_spurious dimensions
+        # acc = self.compute_acc_logistic_regression(z_hat[:, self.z_dim_invariant_model:], domain)
+        # self.log(f"~hz_domain_acc_logreg", acc, prog_bar=True)
+
+        # # compute domain classification accuracy with MLPClassifier for z_hat, z_invariant, z_spurious
+        # acc = self.compute_acc_mlp(z_hat, domain, hidden_layer_size)
+        # self.log(f"domain_acc_mlp", acc, prog_bar=False)
+
+        # # domain prediction from zhat z_dim_invariant dimensions
+        # acc = self.compute_acc_mlp(z_hat[:, :self.z_dim_invariant_model], domain, hidden_layer_size)
+        # self.log(f"hz_domain_acc_mlp", acc, prog_bar=False)
+
+        # # domain prediction from zhat z_dim_spurious dimensions
+        # acc = self.compute_acc_mlp(z_hat[:, self.z_dim_invariant_model:], domain, hidden_layer_size)
+        # self.log(f"~hz_domain_acc_mlp", acc, prog_bar=False)
+        self.validation_step_outputs.clear()
+
+        return
+
+    def on_train_start(self):
         pass

@@ -19,6 +19,66 @@ class VisualizationLoggerCallback(Callback):
         self.datamodule = trainer.datamodule
         self.model = pl_module.model
         
+    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, unused=0):
+        
+        if batch_idx % (self.visualize_every+1) == 0:
+
+            try:
+                renormalize = self.datamodule.train_dataset.renormalize()
+            except AttributeError:
+                renormalize = self.datamodule.train_dataset.dataset.renormalize()
+            except:
+                renormalize = self.datamodule.train_dataset.dataset.dataset.renormalize()
+            
+            pl_module.eval()
+            with torch.no_grad():
+            
+                # images, recons: [batch_size, num_channels, width, height]
+                images = batch["image"][:self.n_samples]
+                z, recons = self.model(images)
+
+                images = images.permute(0, 2, 3, 1)
+                recons = recons.permute(0, 2, 3, 1)
+                num_channels = images.shape[1]
+                # renormalize image and recons?
+
+                plt.cla()
+                plt.close('all')
+                fig, ax = plt.subplots(2, self.n_samples, figsize=(10, 4))
+                for idx in range(self.n_samples):
+                    if num_channels == 1:
+                        image = images[idx].squeeze().cpu().numpy() # [width, height]
+                        recon_ = recons[idx].squeeze().cpu().numpy() # [width, height]
+                        color_map = "gray"
+                    else:
+                        image = images[idx].cpu().numpy() # [width, height, num_channels]
+                        recon_ = recons[idx].cpu().numpy() # [width, height, num_channels]
+                        image = self.clamp(renormalize(image))
+                        recon_ = self.clamp(renormalize(recon_))
+                        # print(f"image min, max: {image.min()}, {image.max()}")
+                        # print(f"recon_ min, max: {recon_.min()}, {recon_.max()}")
+                        color_map = None
+
+
+                    # Visualize.
+                    if color_map == "gray":
+                        ax[0,idx].imshow(image, cmap=color_map)
+                        ax[1,idx].imshow((recon_ * 255).astype(np.uint8), vmin=0, vmax=255, cmap=color_map)
+                    else:
+                        ax[0,idx].imshow(image, vmin=0, vmax=1)
+                        ax[1,idx].imshow(recon_, vmin=0, vmax=1)
+                        # ax[0,idx].imshow(recon_)
+                        
+                    ax[0,idx].set_title('Image')
+                    ax[1,idx].set_title('Recon.')
+                    ax[0,idx].grid(False)
+                    ax[0,idx].axis('off')
+                    ax[1,idx].grid(False)
+                    ax[1,idx].axis('off')
+
+                wandb.log({f"Val Reconstructions": fig})
+
+
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, unused=0):
         
         if batch_idx % (self.visualize_every+1) == 0:
@@ -76,7 +136,7 @@ class VisualizationLoggerCallback(Callback):
                     ax[1,idx].grid(False)
                     ax[1,idx].axis('off')
 
-                wandb.log({f"Reconstructions": fig})
+                wandb.log({f"Train Reconstructions": fig})
 
     # a function to clamps the values of a numpy array between 0,1
     def clamp(self, x):

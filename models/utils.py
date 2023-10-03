@@ -50,6 +50,7 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
     # values of the first d dimensions of z for each domain
     domain_z_mins = torch.zeros((num_domains, z_dim_invariant, top_k))
     domain_z_maxs = torch.zeros((num_domains, z_dim_invariant, top_k))
+    domain_skip = torch.zeros(num_domains)
 
     # z is [batch_size, latent_dim], so is domains. For the first d dimensions
     # of z, find the top_k smallest values of that dimension in each domain
@@ -60,43 +61,59 @@ def penalty_loss_minmax(z, domains, num_domains, z_dim_invariant, *args):
         domain_mask = (domains == domain_idx).squeeze()
         domain_z = z[domain_mask]
 
-        if domain_z.shape[0] < top_k:
+        if domain_z.shape[0] == 0:
+            domain_skip[domain_idx] = 1
+            continue
+        elif domain_z.shape[0] < top_k:
             print(f"WARNING: domain_z.shape[0] < top_k for domain {domain_idx}")
             domain_z_mins[domain_idx, :, domain_z.shape[0]:] = 0.
             domain_z_maxs[domain_idx, :, domain_z.shape[0]:] = 0.
-        for i in range(z_dim_invariant):
-            # for each dimension i among the first d dimensions of z, find the top_k
-            # smallest values of dimension i in domain_z
-            domain_z_sorted, _ = torch.sort(domain_z[:, i], dim=0)
-            domain_z_sorted = domain_z_sorted.squeeze()
-            domain_z_sorted = domain_z_sorted[:top_k]
-            if domain_z.shape[0] < top_k:
-                domain_z_mins[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
-            else:
-                domain_z_mins[domain_idx, i, :] = domain_z_sorted
-
-            # find the top_k largest values of dimension i in domain_z
-            domain_z_sorted, _ = torch.sort(domain_z[:, i], dim=0, descending=True)
-            domain_z_sorted = domain_z_sorted.squeeze()
-            if domain_z.shape[0] < top_k:
-                domain_z_maxs[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
-            else:
+        else:
+            for i in range(z_dim_invariant):
+                # for each dimension i among the first d dimensions of z, find the top_k
+                # smallest values of dimension i in domain_z
+                domain_z_sorted, _ = torch.sort(domain_z[:, i], dim=0)
+                domain_z_sorted = domain_z_sorted.squeeze()
                 domain_z_sorted = domain_z_sorted[:top_k]
-                domain_z_maxs[domain_idx, i, :] = domain_z_sorted
+                if domain_z.shape[0] < top_k:
+                    domain_z_mins[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
+                else:
+                    domain_z_mins[domain_idx, i, :] = domain_z_sorted
+
+                # find the top_k largest values of dimension i in domain_z
+                domain_z_sorted, _ = torch.sort(domain_z[:, i], dim=0, descending=True)
+                domain_z_sorted = domain_z_sorted.squeeze()
+                if domain_z.shape[0] < top_k:
+                    domain_z_maxs[domain_idx, i, :domain_z.shape[0]] = domain_z_sorted
+                else:
+                    domain_z_sorted = domain_z_sorted[:top_k]
+                    domain_z_maxs[domain_idx, i, :] = domain_z_sorted
 
     # compute the pairwise mse of domain_z_mins and add them all together. Same for domain_z_maxs
     mse_mins = 0
     mse_maxs = 0
     if loss_transform == "mse":
         for i in range(num_domains):
-            for j in range(i+1, num_domains):
-                mse_mins += F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
-                mse_maxs += F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
+            if domain_skip[i] == 1:
+                continue
+            else:
+                for j in range(i+1, num_domains):
+                    if domain_skip[j] == 1:
+                        continue
+                    else:
+                        mse_mins += F.mse_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
+                        mse_maxs += F.mse_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
     elif loss_transform == "l1":
         for i in range(num_domains):
-            for j in range(i+1, num_domains):
-                mse_mins += F.l1_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
-                mse_maxs += F.l1_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
+            if domain_skip[i] == 1:
+                continue
+            else:
+                for j in range(i+1, num_domains):
+                    if domain_skip[j] == 1:
+                        continue
+                    else:
+                        mse_mins += F.l1_loss(domain_z_mins[i], domain_z_mins[j], reduction="mean")
+                        mse_maxs += F.l1_loss(domain_z_maxs[i], domain_z_maxs[j], reduction="mean")
     elif loss_transform == "log_mse":
         for i in range(num_domains):
             for j in range(i+1, num_domains):

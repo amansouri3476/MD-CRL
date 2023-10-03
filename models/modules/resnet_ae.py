@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-
 class Encoder(pl.LightningModule):
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -16,9 +15,8 @@ class Encoder(pl.LightningModule):
         except:
             import torchvision.models as models
             resnet18 = models.resnet18(pretrained=False)  # Create an empty ResNet18 model
-            resnet18.load_state_dict(torch.load("resnet18-f37072fd.pth"))  # Load weights from the checkpoint
+            # resnet18.load_state_dict(torch.load("resnet18-f37072fd.pth"))  # Load weights from the checkpoint
 
-        print(self.hparams.encoder_layers.mlp_layers.items())
         mlp_layers = torch.nn.Sequential(
             *[layer_config for _, layer_config in self.hparams.encoder_layers.mlp_layers.items()]
         )
