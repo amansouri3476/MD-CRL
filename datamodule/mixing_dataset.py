@@ -53,6 +53,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         # self.domain_dist_ranges_neg = domain_dist_ranges_neg
         self.invariant_dist_params = invariant_dist_params
         self.mixing_architecture_config = kwargs["mixing_architecture"]
+        self.linear = linear
         self.non_linearity = kwargs["non_linearity"]
         self.polynomial_degree = kwargs["polynomial_degree"]
         self.mixing_G = self._generate_mixing_G(linear, z_dim, x_dim)
@@ -132,7 +133,7 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         domain_mask = domain_mask[indices]
         x_data = self.mixing_G(z_data)
 
-        if self.non_linearity == "polynomial":
+        if not self.linear and self.non_linearity == "polynomial":
             # x_data: [n, poly_size]. Below we normalize and transform it to [n, x_dim]
             x1 = torch.matmul(x_data[:, :1+self.z_dim], torch.tensor(self.coff_matrix[:1+self.z_dim, :], dtype=x_data.dtype))
             # print('X1')

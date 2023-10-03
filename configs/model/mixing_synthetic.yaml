@@ -17,16 +17,22 @@ z_dim_invariant: ${add_int:${datamodule.dataset.z_dim_invariant},${model.mismatc
 penalty_criterion:
   minmax: 0.
   stddev: 0.
+  mmd: 1.0
   domain_classification: 0.
 
 loss_transform: "mse"
-penalty_weight: 0.01
+penalty_weight: 1.0
 stddev_threshold: 1.0
 stddev_eps: 0.0001
 hinge_loss_weight: 0.0
 wait_steps: 0 # 500 # 2000
 linear_steps: 1 # 2000 # 3000
 
+mmd_loss:
+  _target_: models.utils.MMD_loss
+  kernel_multiplier: 1.0
+  kernel_number: 1
+  fix_sigma: null
 
 # full ckpt containing state_dict, callbacks, optimizer, hyperparameters, etc.
 pl_model_ckpt_path: null

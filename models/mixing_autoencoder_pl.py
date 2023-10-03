@@ -96,7 +96,7 @@ class MixingAutoencoderPL(BasePl):
         z_hat, x_hat = self(x)
 
         if batch_idx % 20 == 0:
-            if self.penalty_criterion and self.penalty_criterion["minmax"]:
+            if self.penalty_criterion and (self.penalty_criterion["minmax"] or self.penalty_criterion["mmd"]):
                 # your code here
                 # print all z_hat mins of all domains
                 print(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")

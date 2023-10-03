@@ -23,6 +23,7 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 
 # -------------------------- Synthetic Mixing -------------------------- #
 
+
 # python run_training.py ckpt_path=null model.optimizer.lr=0.01 model=mixing_synthetic datamodule=mixing ~callbacks.visualization_callback model.penalty_weight=0.00001
 # python3 run_training.py model.additional_logger.logging_interval=400 ~callbacks.visualization_callback ~callbacks.early_stopping callbacks.model_checkpoint.monitor="train_loss" logger.wandb.tags=["mila"] ckpt_path=null trainer.max_epochs=2000
 
@@ -33,6 +34,10 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 
 # python run_training.py ckpt_path=null trainer.accelerator='gpu' trainer.devices=1 model/optimizer=adam model.optimizer.lr=0.001 model/scheduler_config=reduce_on_plateau model=mixing_synthetic model.penalty_criterion="minmax" model.hinge_loss_weight=0.0 datamodule=mixing datamodule.dataset.num_domains=4 datamodule.dataset.z_dim=8 ~callbacks.visualization_callback model.penalty_weight=1.0 logger.wandb.tags=["mila","test"]
 
+# -------------------------- Linear Mixing -------------------------- #
+# mmd
+# python run_training.py ckpt_path=null model=mixing_synthetic datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=True datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=8 ~callbacks.visualization_callback logger.wandb.tags=["mila","linear","mmd"] model.save_encoded_data=False
+
 # ------------------------------------------------------------------------------------- #
 # ----------------------- Polynomial Mixing, Non-Linear Model ------------------------- #
 # ------------------------------------------------------------------------------------- #
@@ -40,12 +45,16 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # ------------------------------------------------------------------------------------- #
 # ----------------------------------- Just reconstruction ----------------------------- #
 
+# min-max penalty
 # python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=poly_ae model.optimizer.lr=0.001 datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 datamodule.batch_size=512 datamodule.dataset.z_dim=6 model.z_dim=6 datamodule.dataset.num_domains=8 datamodule.dataset.x_dim=200 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing"]
+
 # ------------------------------------------------------------------------------------- #
 # ------------------------------------- Disentanglement ------------------------------- #
+# min max penalty
+python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=512 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement"] run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_6/2023-09-24_13-57-37"
 
-# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=512 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement"] run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_6/2023-09-24_13-57-37"
-
+# mmd penalty
+python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement","mmd"] model.penalty_criterion.mmd=0. model.penalty_criterion.minmax=0. run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_linear_False_8_6_p3/2023-09-25_18-42-34/"
 
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- Balls --------------------------------------- #

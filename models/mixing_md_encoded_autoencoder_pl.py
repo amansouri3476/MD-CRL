@@ -54,7 +54,7 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         z_hat, x_hat = self(x)
 
         if batch_idx % 20 == 0:
-            if self.penalty_criterion["minmax"] == 1.:
+            if self.penalty_criterion and (self.penalty_criterion["minmax"] == 1. or self.penalty_criterion["mmd"] == 1.):
                 # print all z_hat mins of all domains
                 log.info(f"============== z_hat min all domains ==============\n{[z_hat[(domain == i).squeeze(), :self.z_dim_invariant_model].min().detach().cpu().numpy().item() for i in range(self.num_domains)]}\n")
                 # print all z_hat maxs of all domains

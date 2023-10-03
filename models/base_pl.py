@@ -4,7 +4,7 @@ import torch
 import hydra
 from omegaconf import OmegaConf
 from torch.nn import functional as F
-from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss, penalty_domain_classification
+from models.utils import penalty_loss_minmax, penalty_loss_stddev, hinge_loss, penalty_domain_classification, mmd_loss
 import utils.general as utils
 log = utils.get_logger(__name__)
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -41,10 +41,11 @@ class BasePl(pl.LightningModule):
         self.z_dim_invariant_model = self.hparams.get("z_dim_invariant", 4)
         # self.domain_classification_flag = False
 
-        self.penalty_criterion = self.hparams.get("penalty_criterion", {"minmax": 0., "stddev": 0., "domain_classification": 0.})
+        self.penalty_criterion = self.hparams.get("penalty_criterion", {"minmax": 0., "stddev": 0., "mmd":0., "domain_classification": 0.})
         if self.penalty_criterion and self.penalty_criterion["minmax"]:
             self.loss_transform = self.hparams.get("loss_transform", "mse")
-
+        if self.penalty_criterion and self.penalty_criterion["mmd"]:
+            self.MMD = hydra.utils.instantiate(self.hparams.mmd_loss)
         if self.penalty_criterion and self.penalty_criterion["domain_classification"]:
             # self.domain_classification_flag = True
             # self.automatic_optimization = False
@@ -74,6 +75,10 @@ class BasePl(pl.LightningModule):
         if self.penalty_criterion and self.penalty_criterion["stddev"]:
             penalty_loss_args = []
             penalty_loss_value_ = penalty_loss_stddev(z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
+            penalty_loss_value += penalty_loss_value_
+        if self.penalty_criterion and self.penalty_criterion["mmd"]:
+            penalty_loss_args = []
+            penalty_loss_value_ = mmd_loss(self.MMD, z_hat, domains, self.num_domains, self.z_dim_invariant_model, *penalty_loss_args)
             penalty_loss_value += penalty_loss_value_
         if self.penalty_criterion and self.penalty_criterion["domain_classification"]:
             penalty_loss_args = [self.multinomial_logistic_regression, self.domain_classification_loss]

@@ -205,3 +205,122 @@ def penalty_domain_classification(z, domains, num_domains, z_dim_invariant, *arg
     # not being predictive of domain as much as possible
     return -domain_classification_loss, domain_classification_accuracy
     # return torch.tensor(-domain_classification_loss, device=z.device).unsqueeze(0), 0.
+
+
+# def compute_rbf_kernel(x, y, sigma=1.0):
+#     """
+#     Compute the Gaussian (RBF) kernel matrix between two sets of samples x and y.
+
+#     Args:
+#         x (Tensor): A tensor of shape (n_samples_x, n_features).
+#         y (Tensor): A tensor of shape (n_samples_y, n_features).
+#         sigma (float): The bandwidth of the RBF kernel.
+
+#     Returns:
+#         Tensor: The RBF kernel matrix of shape (n_samples_x, n_samples_y).
+#     """
+
+#     # Compute squared Euclidean distances between samples
+#     xx = torch.sum(x * x, dim=1).view(-1, 1)
+#     yy = torch.sum(y * y, dim=1).view(1, -1)
+#     xy = torch.matmul(x, y.t())
+
+#     distances = xx - 2 * xy + yy
+
+#     # Compute RBF kernel matrix
+#     kernel_matrix = torch.exp(-distances / (2 * sigma**2))
+
+#     return kernel_matrix
+
+# def mmd_loss(x, y, sigma=1.0):
+#     """
+#     Compute the Maximum Mean Discrepancy (MMD) between two sets of samples x and y.
+
+#     Args:
+#         x (Tensor): A tensor of shape (n_samples_x, n_features).
+#         y (Tensor): A tensor of shape (n_samples_y, n_features).
+#         sigma (float): The bandwidth of the RBF kernel.
+
+#     Returns:
+#         Tensor: The MMD loss.
+#     """
+#     kernel_xx = compute_rbf_kernel(x, x, sigma)
+#     kernel_yy = compute_rbf_kernel(y, y, sigma)
+#     kernel_xy = compute_rbf_kernel(x, y, sigma)
+
+#     mmd = torch.mean(kernel_xx) - 2 * torch.mean(kernel_xy) + torch.mean(kernel_yy)
+
+#     return mmd
+
+def mmd_loss(MMD, z, domains, num_domains, z_dim_invariant, *args):
+    # compute the MMD loss between the invariant dimensions of z
+    # across all pairs of domains, and return it as the penalty
+
+    mmd_loss = 0.
+    domain_skip = torch.zeros(num_domains)
+    for domain_idx in range(num_domains):
+        domain_mask = (domains == domain_idx).squeeze()
+        domain_z = z[domain_mask]
+
+        if domain_z.shape[0] == 0:
+            domain_skip[domain_idx] = 1
+            continue
+
+    # compute the pairwise mmd loss of domain_z across pairs of domains and add them all together.
+    for i in range(num_domains):
+        if domain_skip[i] == 1:
+            continue
+        else:
+            for j in range(i+1, num_domains):
+                if domain_skip[j] == 1:
+                    continue
+                else:
+                    domain_i_z = z[(domains == i).squeeze()]
+                    domain_j_z = z[(domains == j).squeeze()]
+                    min_length = min(domain_i_z.shape[0], domain_j_z.shape[0])
+                    mmd_loss += MMD(domain_i_z[:min_length, :z_dim_invariant],domain_j_z[:min_length, :z_dim_invariant])
+
+    return mmd_loss
+
+
+class MMD_loss(nn.Module):
+    def __init__(self, kernel_multiplier = 2.0, kernel_number = 5, fix_sigma = None):
+        super(MMD_loss, self).__init__()
+        self.kernel_multiplier = kernel_multiplier
+        self.kernel_number = kernel_number
+        self.fix_sigma = fix_sigma
+        return
+    
+    def guassian_kernel(self, source, target, kernel_multiplier=None, kernel_number=None, fix_sigma=None):
+        n_samples = int(source.size()[0])+int(target.size()[0])
+        total = torch.cat([source, target], dim=0)
+        kernel_multiplier = kernel_multiplier if kernel_multiplier is not None else self.kernel_multiplier
+        kernel_number = kernel_number if kernel_number is not None else self.kernel_number
+        fix_sigma = fix_sigma if fix_sigma is not None else self.fix_sigma
+        
+        total0 = total.unsqueeze(0).expand(int(total.size(0)), int(total.size(0)), int(total.size(1)))
+        total1 = total.unsqueeze(1).expand(int(total.size(0)), int(total.size(0)), int(total.size(1)))
+        
+        L2_distance = ((total0-total1)**2).sum(2)
+        if fix_sigma:
+            bandwidth = fix_sigma
+        else:
+            bandwidth = torch.sum(L2_distance.data) / (n_samples**2-n_samples)
+        bandwidth /= kernel_multiplier ** (kernel_number // 2)
+        bandwidth_list = [bandwidth * (kernel_multiplier**i) for i in range(kernel_number)]
+        kernel_val = [torch.exp(-L2_distance / bandwidth_temp) for bandwidth_temp in bandwidth_list]
+        return sum(kernel_val)
+    
+    def forward(self, source, target, kernel_multiplier=None, kernel_number=None, fix_sigma=None):
+        kernel_multiplier = kernel_multiplier if kernel_multiplier is not None else self.kernel_multiplier
+        kernel_number = kernel_number if kernel_number is not None else self.kernel_number
+        fix_sigma = fix_sigma if fix_sigma is not None else self.fix_sigma
+        batch_size = int(source.size()[0])
+        kernels = self.guassian_kernel(source, target, kernel_multiplier=self.kernel_multiplier, kernel_number=self.kernel_number, fix_sigma=self.fix_sigma)
+
+        XX = kernels[:batch_size, :batch_size]
+        YY = kernels[batch_size:, batch_size:]
+        XY = kernels[:batch_size, batch_size:]
+        YX = kernels[batch_size:, :batch_size]
+        loss = torch.mean(XX + YY - XY - YX)
+        return loss
