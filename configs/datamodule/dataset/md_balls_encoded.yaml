@@ -3,6 +3,7 @@ dataset_target: datamodule.md_balls_encoded_dataset.BallsMultiDomainEncodedDatas
 dataset_name: multi_domain_balls_encoded_${datamodule.dataset.num_domains}
 num_domains: ${retrieve_num_domain:${run_path}}
 x_dim: ${datamodule.x_dim}
+normalize: True
 
 dataset_parameters:
   train:
@@ -12,6 +13,7 @@ dataset_parameters:
       split: "train"
       seed: ${datamodule.seed}
       num_domains: ${datamodule.dataset.num_domains}
+      normalize: ${datamodule.dataset.normalize}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -26,6 +28,7 @@ dataset_parameters:
       split: "valid"
       seed: ${datamodule.seed}
       num_domains: ${datamodule.dataset.num_domains}
+      normalize: ${datamodule.dataset.normalize}
 
     dataloader:
       batch_size: ${datamodule.batch_size}
@@ -40,6 +43,7 @@ dataset_parameters:
       split: "test"
       seed: ${datamodule.seed}
       num_domains: ${datamodule.dataset.num_domains}
+      normalize: ${datamodule.dataset.normalize}
 
     dataloader:
       batch_size: ${datamodule.batch_size}

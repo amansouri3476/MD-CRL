@@ -8,8 +8,8 @@ datamodule_name: md_balls
 
 # save_dataset: False
 # load_dataset: True
-save_dataset: True
-load_dataset: False
+save_dataset: False
+load_dataset: True
 data_dir: ${work_dir}
 # data_dir: "/home/mila/s/sayed.mansouri-tehrani/scratch/md_balls/n_iv_${datamodule.dataset.n_balls_invariant}_n_sp_${datamodule.dataset.n_balls_spurious}/"
 # data_dir_narval: "/home/aminm/scratch/md_balls/n_iv_${datamodule.dataset.n_balls_invariant}_n_sp_${datamodule.dataset.n_balls_spurious}/"

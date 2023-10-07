@@ -19,15 +19,15 @@ if "SDL_VIDEODRIVER" not in os.environ:
 
 # HSV colours
 COLOURS_ = [
-    [0.95, 0.6, 0.6],
+    [0.0, 0.5, 1.0], # red
     # [0.85, 0.6, 0.6],
-    [0.75, 0.6, 0.6],
+    [0.66, 0.5, 1.0], # blue
     # [0.65, 0.6, 0.6],
     # [0.55, 0.6, 0.6],
-    [0.45, 0.6, 0.6],
+    [0.16, 0.5, 1.0], # green
     # [0.35, 0.6, 0.6],
     # [0.25, 0.6, 0.6],
-    [0.15, 0.6, 0.6],
+    [0.5, 0.5, 1.0], # yello
     # [0.05, 0.6, 0.6],
 ]
 
@@ -258,12 +258,17 @@ class MDBalls(BallsDataset):
         self.target_property_indices = [i for i,p in enumerate(PROPERTIES_) if p in self.properties_list]
         self.non_target_property_indices = [i for i,p in enumerate(PROPERTIES_) if p not in self.properties_list]
         self.pickleable_dataset_params = {}
+        self.pickleable_dataset_params["num_domains"] = self.num_domains
+        self.pickleable_dataset_params["n_balls_invariant"] = self.n_balls_invariant
+        self.pickleable_dataset_params["n_balls_spurious"] = self.n_balls_spurious
+        self.pickleable_dataset_params["invariant_low"] = self.invariant_low
+        self.pickleable_dataset_params["invariant_high"] = self.invariant_high
         self.data = self._generate_data()
-        print(f"self.pickleable_dataset_params: {self.pickleable_dataset_params}")
+        # print(f"self.pickleable_dataset_params: {self.pickleable_dataset_params}")
         self.pickleable_dataset = MDBallsPickleable(self.data, self.transform, **self.pickleable_dataset_params)
 
 
-    def draw_sample(self, z_all):
+    def _draw_sample(self, z_all):
         self._setup(SCREEN_DIM)
         
         if log_:
@@ -275,7 +280,7 @@ class MDBalls(BallsDataset):
 
         # filling z_all with colour hues at dimension 2
         z_all[:, 2] = np.array(hsv_colours)[:, 0]
-        # note the multiplication by 255., because draw_scene works with rgb colours in the range [0, 255.]
+        # note the multiplication by 255., because _draw_scene works with rgb colours in the range [0, 255.]
         rgb_colours = [[255.*channel for channel in colorsys.hls_to_rgb(*c)] for c in hsv_colours]
 
         # filling z_all with shape indices at dimension 3
@@ -285,7 +290,7 @@ class MDBalls(BallsDataset):
         z_all[:, 4] = np.array(sizes)
 
         # segmentation_mask: [n_balls+1, screen_width, screen_width, 1]; segmentation_mask[0] is the background mask
-        x, segmentation_masks = self.draw_scene(z_all, rgb_colours)
+        x, segmentation_masks = self._draw_scene(z_all, rgb_colours)
         
         # dividing z_all[:, 3] (shape dimension) by the number of shapes so the latent
         # becomes nicer and close to the rest of the features.
@@ -307,12 +312,13 @@ class MDBalls(BallsDataset):
 
     def _generate_data(self):
         data = []
-        
+
         z_all = np.zeros((self.num_samples, self.n_balls, len(PROPERTIES_)))
         # build domain grids
         # domain_lows = [num_domains, n_balls_spurious, ball_z_dim]
         # domain_highs = [num_domains, n_balls_spurious, ball_z_dim]
         self.domain_lows, self.domain_highs = self._build_domain_grids()
+        self.pickleable_dataset_params["domain_lows"], self.pickleable_dataset_params["domain_highs"] = self.domain_lows, self.domain_highs
 
         domain_mask = torch.zeros(self.num_samples, 1)
         start = 0
@@ -331,7 +337,7 @@ class MDBalls(BallsDataset):
 
         # draw scenes with z_all for all samples
         for i in tqdm(range(self.num_samples)):
-            sample = self.draw_sample(z_all[i])
+            sample = self._draw_sample(z_all[i])
             sample["domain"] = domain_mask[i]
             data.append(sample)
         
@@ -352,11 +358,11 @@ class MDBalls(BallsDataset):
         # # normalize all images by min and max
         # for i, d in enumerate(data):
         #     data[i]["image"] = (d["image"] - self.min_) / (self.max_ - self.min_)
-        self.pickleable_dataset_params["min"] = self.min_
-        self.pickleable_dataset_params["max"] = self.max_
+        self.pickleable_dataset_params["min_"] = self.min_
+        self.pickleable_dataset_params["max_"] = self.max_
 
-        self.pickleable_dataset_params["mean"] = self.mean_
-        self.pickleable_dataset_params["std"] = self.std_
+        self.pickleable_dataset_params["mean_"] = self.mean_
+        self.pickleable_dataset_params["std_"] = self.std_
         # normalize all images by mean and std
         # for i, d in enumerate(data):
         #     data[i]["image"] = (d["image"] - self.mean_) / self.std_
@@ -367,59 +373,73 @@ class MDBalls(BallsDataset):
         return {"image": self.data[idx]["image"], "z": self.data[idx]["z"], "z_invariant": self.data[idx]["z_invariant"], "z_spurious": self.data[idx]["z_spurious"], "domain": self.data[idx]["domain"], "color": self.data[idx]["color"]}
 
     def _build_domain_grids(self):
-        domain_lows = np.zeros((self.num_domains, self.n_balls_spurious, self.ball_z_dim))
-        domain_highs = np.zeros((self.num_domains, self.n_balls_spurious, self.ball_z_dim))
+        domain_lows = np.zeros((self.num_domains, self.ball_z_dim))
+        domain_highs = np.zeros((self.num_domains, self.ball_z_dim))
 
         # first two dimensions correspond to x,y coordinates
         for i in range(self.num_domains):
 
             # for each domain, we sample the low and high of x,y coordinates of the balls
-            domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
-            domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
+            domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(1, 2))
+            domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(1, 2))
             # resample lows and highs until high_ for each dimension is greater than low_ for the same dimension
-            while (domain_high_ < domain_low_).any() or (domain_high_ < domain_low_ + 2 * self.ball_size).any():
-                domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
-                domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
+            # also, the domain grid should be large enough to fit all spurious balls, hence  * self.n_balls_spurious condition
+            while (domain_high_ < domain_low_).any() or (domain_high_ < domain_low_ + 4 * self.ball_size * self.n_balls_spurious).any():
+                domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(1, 2))
+                domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(1, 2))
+
+
+            # make sure that the intersection of this grid with the invariant grid is at least twice the 
+            # size of the balls. this is to make sure that the balls are not initialized very close to each other
+            # intersection sides of the current domain grid and the invariant grid
+            # intersection_sides = np.zeros((1, 2)) + np.inf
+            # if (domain_low_ < self.invariant_high).all() and (self.invariant_low < domain_high_).all():
+            #     intersection_sides = np.minimum(self.invariant_high, domain_high_) - np.maximum(self.invariant_low, domain_low_)
+            # check if the intersection is at least twice the size of the balls, and if not resample
 
             # make sure that the intersection of any pair of grids is at least twice the size of the balls
             # this is to make sure that the balls are not initialized very close to each other
             # intersection sides of each pair of grids
-            intersection_sides = np.zeros((self.n_balls_spurious, self.n_balls_spurious, 2)) + np.inf
-            for j in range(self.n_balls_spurious):
-                for k in range(j+1, self.n_balls_spurious):
-                    # check if there is any intersection between the two grids
-                    if (domain_low_[j] < domain_high_[k]).all() and (domain_high_[j] > domain_low_[k]).all():
-                        intersection_sides[j, k] = np.minimum(domain_high_[j], domain_high_[k]) - np.maximum(domain_low_[j], domain_low_[k])
-                    else:
-                        intersection_sides[j, k] = np.inf
-            # check if the intersection is at least twice the size of the balls, and if not resample
-            while_loop_threshold = 100
-            while (intersection_sides < 4 * self.ball_size).any() and while_loop_threshold > 0:
-                while_loop_threshold -= 1
-                domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
-                domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
-                while (domain_high_ < domain_low_).any() or (domain_high_ < domain_low_ + 2 * self.ball_size).any():
-                    domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
-                    domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
-                for j in range(self.n_balls_spurious):
-                    for k in range(j+1, self.n_balls_spurious):
-                        if (domain_low_[j] < domain_high_[k]).all() and (domain_high_[j] > domain_low_[k]).all():
-                            intersection_sides[j, k] = np.minimum(domain_high_[j], domain_high_[k]) - np.maximum(domain_low_[j], domain_low_[k])
-                        else:
-                            intersection_sides[j, k] = np.inf
+            # intersection_sides = np.zeros((self.n_balls_spurious, self.n_balls_spurious, 2)) + np.inf
+            # for j in range(self.n_balls_spurious):
+            #     for k in range(j+1, self.n_balls_spurious):
+            #         # check if there is any intersection between the two grids
+            #         if (domain_low_[j] < domain_high_[k]).all() and (domain_high_[j] > domain_low_[k]).all():
+            #             intersection_sides[j, k] = np.minimum(domain_high_[j], domain_high_[k]) - np.maximum(domain_low_[j], domain_low_[k])
+            #         else:
+            #             intersection_sides[j, k] = np.inf
+            # # check if the intersection is at least twice the size of the balls, and if not resample
+            # while_loop_threshold = 100
+            # while (intersection_sides < 4 * self.ball_size).any() and while_loop_threshold > 0:
+            #     while_loop_threshold -= 1
+            #     domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
+            #     domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
+            #     while (domain_high_ < domain_low_).any() or (domain_high_ < domain_low_ + 2 * self.ball_size).any():
+            #         domain_low_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
+            #         domain_high_ = np.random.uniform(self.ball_size, 1.0 - self.ball_size, size=(self.n_balls_spurious, 2))
+            #     for j in range(self.n_balls_spurious):
+            #         for k in range(j+1, self.n_balls_spurious):
+            #             if (domain_low_[j] < domain_high_[k]).all() and (domain_high_[j] > domain_low_[k]).all():
+            #                 intersection_sides[j, k] = np.minimum(domain_high_[j], domain_high_[k]) - np.maximum(domain_low_[j], domain_low_[k])
+            #             else:
+            #                 intersection_sides[j, k] = np.inf
 
-            if while_loop_threshold == 0:
-                if log_:
-                    print(f"_build_domain_grids reached {while_loop_threshold} attempts.")
-                    log.info(f"_build_domain_grids reached {while_loop_threshold} attempts.")
+            # if while_loop_threshold == 0:
+            #     if log_:
+            #         print(f"_build_domain_grids reached {while_loop_threshold} attempts.")
+            #         log.info(f"_build_domain_grids reached {while_loop_threshold} attempts.")
 
-            domain_lows[i, :, :2] = domain_low_
-            domain_highs[i, :, :2] = domain_high_
+            # domain_lows[i, :, :2] = domain_low_
+            # domain_highs[i, :, :2] = domain_high_
+
+            domain_lows[i, :2] = domain_low_
+            domain_highs[i, :2] = domain_high_
 
         return domain_lows, domain_highs
     
     def _sample_z_spurious(self, domain_lows, domain_highs, domain_mask):
         z_spurious = np.zeros((self.num_samples, self.n_balls_spurious, self.ball_z_dim))
+        log.info("Sampling z_spurious...")
         for domain_idx in range(self.num_domains):
             domain_mask_ = (domain_mask == domain_idx).squeeze()            
             domain_length = len(domain_mask_[domain_mask_ == True])
@@ -427,8 +447,8 @@ class MDBalls(BallsDataset):
                 # note that domain_lows and domain_highs should correspond to the boundary of where objects fall
                 # so we should adjust for half the size of ball in initialization so that all objects
                 # fall in the domain boundaries
-                z_spurious[domain_mask_, j, 0] = np.random.uniform(domain_lows[domain_idx, j, 0] + self.ball_size, domain_highs[domain_idx, j, 0] - self.ball_size, domain_length)
-                z_spurious[domain_mask_, j, 1] = np.random.uniform(domain_lows[domain_idx, j, 1] + self.ball_size, domain_highs[domain_idx, j, 1] - self.ball_size, domain_length)
+                z_spurious[domain_mask_, j, 0] = np.random.uniform(domain_lows[domain_idx, 0] + self.ball_size, domain_highs[domain_idx, 0] - self.ball_size, domain_length)
+                z_spurious[domain_mask_, j, 1] = np.random.uniform(domain_lows[domain_idx, 1] + self.ball_size, domain_highs[domain_idx, 1] - self.ball_size, domain_length)
                 z_spurious[domain_mask_, j, 2] = self.n_balls_invariant + j # np.random.choice(range(len(COLOURS_)), domain_length)
                 z_spurious[domain_mask_, j, 3] = 0 # np.random.choice(range(len(SHAPES_)), domain_length)
                 z_spurious[domain_mask_, j, 4] = self.ball_size # np.random.uniform(self.min_size, self.max_size, domain_length)
@@ -441,9 +461,9 @@ class MDBalls(BallsDataset):
                 sampled_coordinates_distance_matrix = np.linalg.norm(sample[:, :2][None, :] - sample[:, :2][:, None], axis=-1)
                 duplicate_mask = np.triu(sampled_coordinates_distance_matrix<duplicate_coordinates_threshold).sum(-1)>1
                 while_loop_threshold = 100
-                while duplicate_mask.any():
+                while duplicate_mask.any() and while_loop_threshold > 0:
                     while_loop_threshold -= 1
-                    sample[duplicate_mask, :2] = np.random.uniform(domain_lows[domain_idx, duplicate_mask, :2] + self.ball_size, domain_highs[domain_idx, duplicate_mask, :2] - self.ball_size, (duplicate_mask.sum(), 2))
+                    sample[duplicate_mask, :2] = np.random.uniform(domain_lows[domain_idx, :2] + self.ball_size, domain_highs[domain_idx, :2] - self.ball_size, (duplicate_mask.sum(), 2))
                     sampled_coordinates_distance_matrix = np.linalg.norm(sample[:, :2][None, :] - sample[:, :2][:, None], axis=-1)
                     duplicate_mask = np.triu(sampled_coordinates_distance_matrix<duplicate_coordinates_threshold).sum(-1)>1
                 if while_loop_threshold == 0:
@@ -458,7 +478,8 @@ class MDBalls(BallsDataset):
 
     def _sample_z_invariant(self, z_all):
         z_invariant = np.zeros((self.num_samples, self.n_balls_invariant, self.ball_z_dim))
-        for i in range(self.num_samples):
+        log.info("Sampling z_invariant...")
+        for i in tqdm(range(self.num_samples)):
             # note that domain_lows and domain_highs should correspond to the boundary of where objects fall
             # so we should adjust for half the size of ball in initialization so that all objects
             # fall in the image boundaries
@@ -475,7 +496,7 @@ class MDBalls(BallsDataset):
             sampled_coordinates_distance_matrix = np.linalg.norm(sample_ball_coordinates[None, :] - sample_ball_coordinates[:, None], axis=-1) # [n_balls_spurious + n_balls_invariant, n_balls_spurious + n_balls_invariant]
             duplicate_mask = np.triu(sampled_coordinates_distance_matrix<duplicate_coordinates_threshold)[:self.n_balls_invariant].sum(-1)>1
             while_loop_threshold = 100
-            while duplicate_mask.any():
+            while duplicate_mask.any() and while_loop_threshold > 0:
                 while_loop_threshold -= 1
                 z_invariant[i, duplicate_mask, :2] = np.random.uniform(np.array(self.invariant_low) + self.ball_size, np.array(self.invariant_high) - self.ball_size, (duplicate_mask.sum(), 2)).squeeze()
                 sample_ball_coordinates = np.concatenate([z_invariant[i, :, :2], z_all[i, :, :2]], axis=0)
@@ -487,7 +508,7 @@ class MDBalls(BallsDataset):
                     log.info(f"_sample_z_invariant reached {while_loop_threshold} attempts.")
         return z_invariant
 
-    def draw_scene(self, z, colours=None):
+    def _draw_scene(self, z, colours=None):
         self.surf.fill((255, 255, 255))
         # getting the background segmentation mask
         self.bg_surf = pygame.Surface((self.screen_dim, self.screen_dim), pygame.SRCALPHA)

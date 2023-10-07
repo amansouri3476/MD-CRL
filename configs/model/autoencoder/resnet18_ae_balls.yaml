@@ -59,9 +59,9 @@ decoder_cnn:
         out_features: 128
         bias: False
 
-      BN1:
-        _target_: torch.nn.BatchNorm1d
-        num_features: ${model.autoencoder.decoder_cnn.mlp_layers.fc1.out_features}
+      # BN1:
+      #   _target_: torch.nn.BatchNorm1d
+      #   num_features: ${model.autoencoder.decoder_cnn.mlp_layers.fc1.out_features}
 
       fc1_nonlinearity:
         _target_: torch.nn.LeakyReLU
@@ -73,9 +73,9 @@ decoder_cnn:
         out_features: 1024 # 64x4x4
         bias: False
       
-      BN2:
-        _target_: torch.nn.BatchNorm1d
-        num_features: ${model.autoencoder.decoder_cnn.mlp_layers.fc2.out_features}
+      # BN2:
+      #   _target_: torch.nn.BatchNorm1d
+      #   num_features: ${model.autoencoder.decoder_cnn.mlp_layers.fc2.out_features}
 
       fc2_nonlinearity:
         _target_: torch.nn.LeakyReLU
@@ -90,9 +90,9 @@ decoder_cnn:
       stride: 2
       padding: 1
     
-    BN1:
-      _target_: torch.nn.BatchNorm2d
-      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose1.out_channels}
+    # BN1:
+    #   _target_: torch.nn.BatchNorm2d
+    #   num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose1.out_channels}
 
     LeakyReLU1:
       _target_: torch.nn.LeakyReLU
@@ -105,9 +105,9 @@ decoder_cnn:
       stride: 2
       padding: 1
     
-    BN2:
-      _target_: torch.nn.BatchNorm2d
-      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose2.out_channels}
+    # BN2:
+    #   _target_: torch.nn.BatchNorm2d
+    #   num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose2.out_channels}
 
     LeakyReLU2:
       _target_: torch.nn.LeakyReLU
@@ -120,9 +120,9 @@ decoder_cnn:
       stride: 2
       padding: 1
 
-    BN3:
-      _target_: torch.nn.BatchNorm2d
-      num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose3.out_channels}
+    # BN3:
+    #   _target_: torch.nn.BatchNorm2d
+    #   num_features: ${model.autoencoder.decoder_cnn.decoder_layers.ConvTranspose3.out_channels}
 
     LeakyReLU3:
       _target_: torch.nn.LeakyReLU

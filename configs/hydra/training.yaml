@@ -22,9 +22,14 @@ job:
         - run_path
         - datamodule
         - datamodule.batch_size
+        - datamodule.dataset
         - logger.wandb.tags
         - model.optimizer
+        - model.z_dim
+        - model.optimizer.lr
         - model.penalty_criterion
+        - model.penalty_criterion.minmax
+        - model.penalty_criterion.mmd
         - model.pl_model_ckpt_path
         - model.additional_logger.logging_interval
         - model.linear_steps

@@ -15,8 +15,8 @@ defaults:
   - debug: null
 
   # enable color logging
-  - override hydra/hydra_logging: default # colorlog
-  - override hydra/job_logging: default # colorlog
+  # - override hydra/hydra_logging: default # colorlog
+  # - override hydra/job_logging: default # colorlog
   # enable job submission through slurm
   # options: submitit_slurm_mila, submitit_slurm_mila_v100_multicore
   # , submitit_slurm_mila_a100, submitit_slurm_narval, submitit_slurm_narval_multicore

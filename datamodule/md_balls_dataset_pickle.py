@@ -54,10 +54,10 @@ class MDBallsPickleable(torch.utils.data.Dataset):
 
         self.data = data
         self.transform = transform
-        self.mean_ = kwargs.get("mean", 0.0)
-        self.std_ = kwargs.get("std", 1.0)
-        self.min_ = kwargs.get("min", 0.0)
-        self.max_ = kwargs.get("max", 1.0)
+        # convert all kwargs to attributes
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
 
     def __getitem__(self, idx):
         return self.data[idx]

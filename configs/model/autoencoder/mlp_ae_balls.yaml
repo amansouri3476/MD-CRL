@@ -2,7 +2,7 @@ _target_: models.modules.mlp_ae.FCAE
 
 activation: torch.nn.LeakyReLU # torch.nn.ReLU, torch.nn.LeakyLeakyReLU, torch.nn.Sigmoid, torch.nn.Tanh
 latent_dim: ${model.z_dim}
-width: 500
+width: 200
 negative_slope: 0.2
 
 encoder_fc:
@@ -14,6 +14,9 @@ encoder_fc:
       in_features: ${datamodule.x_dim}
       out_features: ${model.autoencoder.width}
       bias: True
+    BN1:
+      _target_: torch.nn.BatchNorm1d
+      num_features: ${model.autoencoder.width}
     ReLU1:
       _target_: ${model.autoencoder.activation}
       negative_slope: ${model.autoencoder.negative_slope}
@@ -22,6 +25,9 @@ encoder_fc:
       in_features: ${model.autoencoder.width}
       out_features: ${model.autoencoder.width}
       bias: True
+    BN2:
+      _target_: torch.nn.BatchNorm1d
+      num_features: ${model.autoencoder.width}
     # ReLU2:
     #   _target_: ${model.autoencoder.activation}
     #   negative_slope: ${model.autoencoder.negative_slope}
@@ -38,6 +44,9 @@ encoder_fc:
       in_features: ${model.autoencoder.width}
       out_features: ${model.autoencoder.width}
       bias: True
+    BN4:
+      _target_: torch.nn.BatchNorm1d
+      num_features: ${model.autoencoder.width}
     ReLU4:
       _target_: ${model.autoencoder.activation}
       negative_slope: ${model.autoencoder.negative_slope}
@@ -60,6 +69,9 @@ decoder_fc:
       in_features: ${model.autoencoder.latent_dim}
       out_features: ${model.autoencoder.width}
       bias: True
+    BN1:
+      _target_: torch.nn.BatchNorm1d
+      num_features: ${model.autoencoder.width}
     ReLU1:
       _target_: ${model.autoencoder.activation}
       negative_slope: ${model.autoencoder.negative_slope}
@@ -68,6 +80,9 @@ decoder_fc:
       in_features: ${model.autoencoder.width}
       out_features: ${model.autoencoder.width}
       bias: True
+    BN2:
+      _target_: torch.nn.BatchNorm1d
+      num_features: ${model.autoencoder.width}
     # ReLU2:
     #   _target_: ${model.autoencoder.activation}
     #   negative_slope: ${model.autoencoder.negative_slope}
@@ -84,6 +99,9 @@ decoder_fc:
       in_features: ${model.autoencoder.width}
       out_features: ${model.autoencoder.width}
       bias: True
+    BN4:
+      _target_: torch.nn.BatchNorm1d
+      num_features: ${model.autoencoder.width}
     ReLU4:
       _target_: ${model.autoencoder.activation}
       negative_slope: ${model.autoencoder.negative_slope}

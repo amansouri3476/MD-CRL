@@ -120,7 +120,7 @@ class BallsDataset(torch.utils.data.Dataset):
         lines = [head] + [" " + line for line in body]
         return "\n".join(lines)
 
-    def draw_scene(self, z, colours=None):
+    def _draw_scene(self, z, colours=None):
         self.surf.fill((255, 255, 255))
         # getting the background segmentation mask
         self.bg_surf = pygame.Surface((self.screen_dim, self.screen_dim), pygame.SRCALPHA)
