@@ -56,7 +56,9 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         self.linear = linear
         self.non_linearity = kwargs["non_linearity"]
         self.polynomial_degree = kwargs["polynomial_degree"]
-        self.mixing_G = self._generate_mixing_G(linear, z_dim, x_dim)
+        self.correlated_z = kwargs["correlated_z"]
+        self.corr_prob = kwargs["corr_prob"]
+        self._mixing_G = self._generate_mixing_G(linear, z_dim, x_dim)
         self.data = self._generate_data()
         self.pickleable_dataset = MDMixingPickleable(self, self.data)
 
@@ -70,6 +72,9 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         # the first z_dim_invariant dimensions are sampled from uniform [0,1]
         z_data_invar = torch.rand(self.num_samples, self.z_dim_invariant) * (self.invariant_dist_params[1] - self.invariant_dist_params[0]) + self.invariant_dist_params[0]
         z_data[:, :self.z_dim_invariant] = z_data_invar
+
+        self.spurious_lows = np.zeros((self.z_dim_spurious, self.num_domains))
+        self.spurious_highs = np.zeros((self.z_dim_spurious, self.num_domains))
 
         if self.generation_strategy == "manual":
             # for each domain, create its data, i.e., a tensor of size [num_samples, z_dim-z_dim_invariant] 
@@ -116,6 +121,9 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
                         low = random.random() * (self.domain_dist_ranges[1] - self.domain_dist_ranges[0]) + self.domain_dist_ranges[0]
                         high = random.random() * (self.domain_dist_ranges[1] - self.domain_dist_ranges[0]) + self.domain_dist_ranges[0]
                     
+                    self.spurious_lows[dim_idx, domain_idx] = low
+                    self.spurious_highs[dim_idx, domain_idx] = high
+
                     # sample from uniform [low, high] for each domain
                     domain_size = int(self.domain_lengths[domain_idx] * self.num_samples)
                     start = int(domain_size * domain_idx)
@@ -131,7 +139,9 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
         random.shuffle(indices)
         z_data = z_data[indices]
         domain_mask = domain_mask[indices]
-        x_data = self.mixing_G(z_data)
+        if self.correlated_z:
+            z_data = self._correlate_z(z_data, domain_mask)
+        x_data = self._mixing_G(z_data)
 
         if not self.linear and self.non_linearity == "polynomial":
             # x_data: [n, poly_size]. Below we normalize and transform it to [n, x_dim]
@@ -199,6 +209,43 @@ class SyntheticMixingDataset(torch.utils.data.Dataset):
                 # make sure the output does not require any grads, and is simply a torch tensor
                 return lambda z: self.G(z).detach()
 
+    def _correlate_z(self, z, domain_mask):
+
+        # # z: [n, z_dim]
+        # # sample a rotation matrix from scipy to rotate z, make sure the dtype is float32
+        # from scipy.stats import special_ortho_group
+        # rotation_matrix = special_ortho_group.rvs(z.shape[1]).astype(np.float32) # [z_dim, z_dim]
+
+        # # rotate z
+        # z = np.matmul(z, rotation_matrix)
+
+        # # clamp the invariant part of z to self.invariant_dist_params
+        # z[:, :self.z_dim_invariant] = np.clip(z[:, :self.z_dim_invariant], self.invariant_dist_params[0], self.invariant_dist_params[1])
+
+        # # clamp the spurious part of z to self.spurious_lows and self.spurious_highs corresponding 
+        # # to each domain
+        # for dim_idx in range(self.z_dim_spurious):
+        #     for domain_idx in range(self.num_domains):
+        #         low = self.spurious_lows[dim_idx, domain_idx]
+        #         high = self.spurious_highs[dim_idx, domain_idx]
+        #         domain_indices = (domain_mask == domain_idx).squeeze()
+        #         z[domain_indices, self.z_dim_invariant + dim_idx] = np.clip(z[domain_indices, self.z_dim_invariant + dim_idx], low, high)
+
+        # change the spurious dimensions as follows: for each sample and z_dim spurious, toss a coin that with
+        # probability p comes head and with probability 1-p comes tail. If it comes head,
+        # add the z_dim_invariant to the spurious dimension, otherwise leave it as is
+        offset = torch.zeros((z.shape[0], self.z_dim_spurious))
+        coin = np.random.binomial(1, self.corr_prob, size=(z.shape[0], self.z_dim_spurious)) # [n, z_dim_spurious]
+        for dim_idx in range(self.z_dim_spurious):
+            offset[:, dim_idx] = torch.tensor(coin[:, dim_idx]) * z[:, dim_idx]
+
+        # coin = np.random.randint(0, 2, size=(z.shape[0], self.z_dim_spurious)) # [n, z_dim_spurious]
+        # for dim_idx in range(self.z_dim_spurious):
+        #     offset[:, dim_idx] = coin[:, dim_idx] * z[:, self.z_dim_invariant]
+
+        z[:, self.z_dim_invariant:] = z[:, self.z_dim_invariant:] + offset
+
+        return z
 
 def compute_total_polynomial_terms(poly_degree, latent_dim):
     count=0

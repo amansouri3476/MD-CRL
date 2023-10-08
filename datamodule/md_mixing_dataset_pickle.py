@@ -25,7 +25,7 @@ class MDMixingPickleable(torch.utils.data.Dataset):
         self.length = dataset.__len__()
         # extract all attributes of dataset as the attributes of this new dataset
         for attr in dir(dataset):
-            if not attr.startswith("__") and not attr == "data" and not attr.startswith("_generate") and not attr == "pickleable_dataset" and not attr == "mixing_G" and not attr == "G":
+            if not attr.startswith("__") and not attr == "data" and not attr.startswith("_generate") and not attr == "pickleable_dataset" and not attr == "_mixing_G" and not attr == "G" and not attr == "_correlate_z":
                 # print(attr)
                 setattr(self, attr, getattr(dataset, attr))
 

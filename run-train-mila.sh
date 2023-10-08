@@ -38,6 +38,14 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # mmd
 # python run_training.py ckpt_path=null model=mixing_synthetic datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=True datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=8 ~callbacks.visualization_callback logger.wandb.tags=["mila","linear","mmd"] model.save_encoded_data=False
 
+# -------------------------- Linear Mixing + Correlation -------------------------- #
+# minmax
+# python run_training.py ckpt_path=null model=mixing_synthetic model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=True datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=8 ~callbacks.visualization_callback logger.wandb.tags=["correlation"] model.save_encoded_data=False datamodule.dataset.correlated_z=True
+# mmd
+# python run_training.py ckpt_path=null model=mixing_synthetic model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=1. datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=True datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=16 ~callbacks.visualization_callback logger.wandb.tags=["correlation"] model.save_encoded_data=False datamodule.dataset.correlated_z=True 
+# python run_training.py ckpt_path=null model=mixing_synthetic model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=1. datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=True datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=16 ~callbacks.visualization_callback logger.wandb.tags=["correlation"] model.save_encoded_data=False datamodule.dataset.correlated_z=True datamodule.dataset.corr_prob=1.0
+# python run_training.py ckpt_path=null model=mixing_synthetic model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=1. datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=True datamodule.dataset.z_dim=4 datamodule.dataset.num_domains=16 ~callbacks.visualization_callback logger.wandb.tags=["correlation"] model.save_encoded_data=False datamodule.dataset.correlated_z=False
+
 # ------------------------------------------------------------------------------------- #
 # ----------------------- Polynomial Mixing, Non-Linear Model ------------------------- #
 # ------------------------------------------------------------------------------------- #
@@ -48,6 +56,10 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # min-max penalty
 # python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=poly_ae model.optimizer.lr=0.001 datamodule=mixing datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2 datamodule.batch_size=512 datamodule.dataset.z_dim=6 model.z_dim=6 datamodule.dataset.num_domains=8 datamodule.dataset.x_dim=200 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing"]
 
+# ----------------- Polynomial Mixing + Correlation | Reconstruction ------------------ #
+
+# python run_training.py ckpt_path=null model=mixing_synthetic model/autoencoder=poly_ae model.penalty_criterion.minmax=0. model.penalty_criterion.mmd=0. datamodule=mixing datamodule.batch_size=1024 datamodule.dataset.linear=False datamodule.dataset.non_linearity=polynomial datamodule.dataset.polynomial_degree=2,3 datamodule.dataset.z_dim=6,8,10,12,14 datamodule.dataset.x_dim=200 datamodule.dataset.num_domains=16 ~callbacks.visualization_callback logger.wandb.tags=["correlation-poly-recons"] model.save_encoded_data=True datamodule.dataset.correlated_z=True datamodule.dataset.corr_prob=0.5 --multirun
+
 # ------------------------------------------------------------------------------------- #
 # ------------------------------------- Disentanglement ------------------------------- #
 # min max penalty
@@ -55,6 +67,33 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 
 # mmd penalty
 # python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder model.optimizer.lr=0.001 datamodule=mixing_encoded datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["mila","poly-mixing-disentanglement","mmd"] model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=0. run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_synthetic_mixing_linear_False_8_6_p3/2023-09-25_18-42-34/"
+
+# ----------------- Polynomial Mixing + Correlation | Disentanglement ----------------- #
+# minmax
+# p2, d6
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_6_p2/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=2,datamodule.dataset.z_dim=6,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p3, d6
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_6_p3/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=3,datamodule.dataset.z_dim=6,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p2, d8
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_8_p2/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=2,datamodule.dataset.z_dim=8,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p3, d8
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_8_p3/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=3,datamodule.dataset.z_dim=8,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p2, d10
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_10_p2/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=2,datamodule.dataset.z_dim=10,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p3, d10
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_10_p3/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=3,datamodule.dataset.z_dim=10,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p2, d12
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_12_p2/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=2,datamodule.dataset.z_dim=12,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p3, d12
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_12_p3/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=3,datamodule.dataset.z_dim=12,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p2, d14
+# python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_14_p2/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=2,datamodule.dataset.z_dim=14,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+# p3, d14
+python run_training.py ckpt_path=null model=mixing_md_encoded_autoencoder datamodule=mixing_encoded model.penalty_criterion.minmax=1. model.penalty_criterion.mmd=0. datamodule.batch_size=1024 ~callbacks.visualization_callback logger.wandb.tags=["poly-dis-corr"] run_path="'/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/multiruns/autoencoder_synthetic_mixing_linear_False_16_14_p3/2023-10-08_05-41-38/datamodule.dataset.polynomial_degree=3,datamodule.dataset.z_dim=14,model/autoencoder=poly_ae,model=mixing_synthetic/'"
+
+
+# mmd
+
 
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- Balls --------------------------------------- #
@@ -75,6 +114,7 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 
 # python run_training.py trainer.accelerator='cpu' ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
 
+# ------------------------- Reconstruction Only + Correlation ------------------------- #
 
 # ----------------------------- Systematic Sweep (Stage 2) ---------------------------- #
 # resnet18 64 bn-enc
@@ -158,7 +198,7 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # default values, sanity check, mmd
 # python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_07-21-05/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=0. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False seed=1234,4586,82912 --multirun
 # default values, sanity check, minmax
-python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","minmax"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_07-21-05/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=0. model.penalty_criterion.minmax=1. model.top_k=5,10 model.save_encoded_data=False seed=1234,4586,82912 --multirun
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","minmax"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_07-21-05/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=0. model.penalty_criterion.minmax=1. model.top_k=5,10 model.save_encoded_data=False seed=1234,4586,82912 --multirun
 
 # original dataset
 # python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["mila","overlap","mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-01_18-15-26/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=0. model.mmd_loss.kernel_multiplier=1.0,3.0 model.mmd_loss.kernel_number=1,3 model.mmd_loss.fix_sigma=1.0,null model.save_encoded_data=False --multirun

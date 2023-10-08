@@ -204,3 +204,38 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
 
     def on_validation_epoch_end(self):
         pass
+
+    def on_train_start(self):
+
+        # log the r2 scores before any training has started
+        valid_dataset = self.trainer.datamodule.valid_dataset
+
+        z = valid_dataset.data["z"]
+        z_hat = valid_dataset.data["z_hat"]
+        z_invariant = valid_dataset.data["z"][:, :self.z_dim_invariant_model]
+        z_spurious = valid_dataset.data["z"][:, self.z_dim_invariant_model:]
+
+        r2, mse_loss = self.compute_r2(z, z_hat)
+        self.log(f"r2_linreg_start", r2, prog_bar=False)
+        # self.log(f"mse_loss_linreg_start", mse_loss, prog_bar=False)
+        r2, mse_loss = self.compute_r2(z_hat, z)
+        self.log(f"~r2_linreg_start", r2, prog_bar=False)
+        # self.log(f"~mse_loss_linreg_start", mse_loss, prog_bar=False)
+
+        # fit a linear regression from z_hat invariant dims to z_invariant dimensions
+        # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
+        r2, mse_loss = self.compute_r2(z_invariant, z_hat[:, :self.z_dim_invariant_model])
+        self.log(f"hz_z_r2_linreg_start", r2, prog_bar=False)
+        # self.log(f"hz_z_mse_loss_linreg_start", mse_loss, prog_bar=False)
+        r2, mse_loss = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_invariant)
+        self.log(f"hz_z_~r2_linreg_start", r2, prog_bar=False)
+        # self.log(f"hz_z_~mse_loss_linreg", mse_loss, prog_bar=False)
+
+        # fit a linear regression from z_hat invariant dims to z_spurious dimensions
+        # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
+        r2, mse_loss = self.compute_r2(z_spurious, z_hat[:, :self.z_dim_invariant_model])
+        self.log(f"hz_~z_r2_linreg_start", r2, prog_bar=False)
+        # self.log(f"hz_~z_mse_loss_linreg_start", mse_loss, prog_bar=False)
+        r2, mse_loss = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_spurious)
+        self.log(f"hz_~z_~r2_linreg_start", r2, prog_bar=False)
+        # self.log(f"hz_~z_~mse_loss_linreg_start", mse_loss, prog_bar=False)

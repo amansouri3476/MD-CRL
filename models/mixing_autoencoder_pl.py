@@ -140,7 +140,7 @@ class MixingAutoencoderPL(BasePl):
         # 2. predicting z_hat[z_dim_invariant:] from z[:z_dim_invariant]
         reg = LinearRegression().fit(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         r2 = reg.score(z[:, :self.z_dim_invariant_data].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        self.log(f"~hz_z_r2", r2, prog_bar=True)
+        self.log(f"~hz_z_r2", r2, prog_bar=False)
 
         # 3. predicting z_hat[:z_dim_invariant] from z[z_dim_invariant:]
         reg = LinearRegression().fit(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
@@ -150,7 +150,7 @@ class MixingAutoencoderPL(BasePl):
         # 4. predicting z_hat[z_dim_invariant:] from z[z_dim_invariant:]
         reg = LinearRegression().fit(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         r2 = reg.score(z[:, self.z_dim_invariant_data:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        self.log(f"~hz_~z_r2", r2, prog_bar=True)
+        self.log(f"~hz_~z_r2", r2, prog_bar=False)
 
         # # compute all of the above regression scores with MLPRegressor
         # from sklearn.neural_network import MLPRegressor
@@ -181,24 +181,24 @@ class MixingAutoencoderPL(BasePl):
 
         # comptue the average norm of first z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
-        self.log(f"z_norm", z_norm, prog_bar=True)
+        self.log(f"z_norm", z_norm, prog_bar=False)
         # comptue the average norm of the last n-z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
-        self.log(f"~z_norm", z_norm, prog_bar=True)
+        self.log(f"~z_norm", z_norm, prog_bar=False)
 
         # compute and log the ratio of the variance of z along the z_dim_invariant_model dimensions to the expectatio
         # of norm of x
         z_var = torch.var(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
         x_norm = torch.norm(x, dim=1).mean()
-        self.log(f"z_var/x_norm", z_var/x_norm, prog_bar=True)
+        self.log(f"z_var/x_norm", z_var/x_norm, prog_bar=False)
 
         # do the same with the rest of z dimensions
         z_var = torch.var(z_hat[:, self.z_dim_invariant_model:], dim=1).mean()
-        self.log(f"~z_var/x_norm", z_var/x_norm, prog_bar=True)
+        self.log(f"~z_var/x_norm", z_var/x_norm, prog_bar=False)
 
         loss, reconstruction_loss, penalty_loss_value, hinge_loss_value = self.loss(x, x_hat, z_hat, domain)
-        self.log(f"val_reconstruction_loss", reconstruction_loss.item())
-        self.log(f"val_penalty_loss", penalty_loss_value.item())
+        self.log(f"val_reconstruction_loss", reconstruction_loss.item(), prog_bar=True)
+        self.log(f"val_penalty_loss", penalty_loss_value.item(), prog_bar=True)
         try:
             self.log(f"val_hinge_loss", hinge_loss_value.item())
         except:

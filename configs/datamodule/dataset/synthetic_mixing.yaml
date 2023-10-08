@@ -23,6 +23,8 @@ x_dim: ${mult_int:${datamodule.dataset.z_dim}, 2} # 8
 linear: True
 non_linearity: "polynomial" # "mlp", "polynomial"
 polynomial_degree: 2
+correlated_z: False
+corr_prob: 1.0
 
 dataset_parameters:
   train:
@@ -40,6 +42,8 @@ dataset_parameters:
       linear: ${datamodule.dataset.linear}
       non_linearity: ${datamodule.dataset.non_linearity}
       polynomial_degree: ${datamodule.dataset.polynomial_degree}
+      correlated_z: ${datamodule.dataset.correlated_z}
+      corr_prob: ${datamodule.dataset.corr_prob}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
       x_dim: ${datamodule.dataset.x_dim}
@@ -66,6 +70,8 @@ dataset_parameters:
       linear: ${datamodule.dataset.linear}
       non_linearity: ${datamodule.dataset.non_linearity}
       polynomial_degree: ${datamodule.dataset.polynomial_degree}
+      correlated_z: ${datamodule.dataset.correlated_z}
+      corr_prob: ${datamodule.dataset.corr_prob}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
       x_dim: ${datamodule.dataset.x_dim}
@@ -91,7 +97,9 @@ dataset_parameters:
       invariant_dist_params: ${datamodule.dataset.invariant_dist_params}
       linear: ${datamodule.dataset.linear}
       non_linearity: ${datamodule.dataset.non_linearity}
-      polynomial_degree: ${datamodule.dataset.polynomial_degree}      
+      polynomial_degree: ${datamodule.dataset.polynomial_degree}
+      correlated_z: ${datamodule.dataset.correlated_z}
+      corr_prob: ${datamodule.dataset.corr_prob}
       z_dim: ${datamodule.dataset.z_dim}
       z_dim_invariant: ${datamodule.dataset.z_dim_invariant}
       x_dim: ${datamodule.dataset.x_dim}

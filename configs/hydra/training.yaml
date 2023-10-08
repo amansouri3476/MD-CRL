@@ -23,6 +23,12 @@ job:
         - datamodule
         - datamodule.batch_size
         - datamodule.dataset
+        - datamodule.dataset.correlated_z
+        - datamodule.dataset.corr_prob
+        - datamodule.dataset.linear
+        - datamodule.dataset.non_linearity
+        - datamodule.dataset.num_domains
+        - datamodule.dataset.x_dim
         - logger.wandb.tags
         - model.optimizer
         - model.z_dim
@@ -32,6 +38,7 @@ job:
         - model.penalty_criterion.mmd
         - model.pl_model_ckpt_path
         - model.additional_logger.logging_interval
+        - model.save_encoded_data
         - model.linear_steps
         - model.wait_steps
         - model/optimizer
