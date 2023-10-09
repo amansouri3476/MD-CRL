@@ -6,7 +6,7 @@ defaults:
   - autoencoder: linear_ae_synthetic # options:
   - additional_logger: null # reconstruction_logger
 
-save_encoded_data: True
+save_encoded_data: False
 
 top_k: 5
 num_domains: ${datamodule.dataset.num_domains}

@@ -24,7 +24,7 @@ linear: True
 non_linearity: "polynomial" # "mlp", "polynomial"
 polynomial_degree: 2
 correlated_z: False
-corr_prob: 1.0
+corr_prob: 0.5
 
 dataset_parameters:
   train:

@@ -252,6 +252,8 @@ class MDBalls(BallsDataset):
         self.ball_size = kwargs.get("ball_size", 0.1)
         self.invariant_low = invariant_low
         self.invariant_high = invariant_high
+        self.correlated_z = kwargs["correlated_z"]
+        self.corr_prob = kwargs["corr_prob"]
 
         self.same_color = kwargs.get("same_color")
         self.properties_list = kwargs.get("properties_list") # a subset of ["x","y","c","s"] preserving the order
@@ -335,7 +337,12 @@ class MDBalls(BallsDataset):
         z_invariant = self._sample_z_invariant(z_all)
         z_all[:, :self.n_balls_invariant, :] = z_invariant
 
+        if self.correlated_z:
+            log.info("Correlating z...")
+            z_all = self._correlate_z(z_all)
+
         # draw scenes with z_all for all samples
+        log.info("Drawing scenes...")
         for i in tqdm(range(self.num_samples)):
             sample = self._draw_sample(z_all[i])
             sample["domain"] = domain_mask[i]
@@ -345,15 +352,9 @@ class MDBalls(BallsDataset):
         # 3 dimensional (rgb)
         # concatenate all images
         images = np.concatenate([d["image"] for d in data], axis=0) # [num_samples, screen_width, screen_width, 3]
-        # find the min of the last dimension (rgb) for all images
         self.min_ = images.min() # [1]
-        # self.min_ = images.min(axis=(0,1,2)) # [3]
-        # find the max of the last dimension (rgb) for all images
         self.max_ = images.max() # [1]
-        # self.max_ = images.max(axis=(0,1,2)) # [3]
-        # find the mean of the last dimension (rgb) for all images
         self.mean_ = images.mean(axis=(0,1,2)) # [3]
-        # find the std of the last dimension (rgb) for all images
         self.std_ = images.std(axis=(0,1,2)) # [3] 
         # # normalize all images by min and max
         # for i, d in enumerate(data):
@@ -479,7 +480,7 @@ class MDBalls(BallsDataset):
     def _sample_z_invariant(self, z_all):
         z_invariant = np.zeros((self.num_samples, self.n_balls_invariant, self.ball_z_dim))
         log.info("Sampling z_invariant...")
-        for i in tqdm(range(self.num_samples)):
+        for i in range(self.num_samples):
             # note that domain_lows and domain_highs should correspond to the boundary of where objects fall
             # so we should adjust for half the size of ball in initialization so that all objects
             # fall in the image boundaries
@@ -633,6 +634,101 @@ class MDBalls(BallsDataset):
         # else:
         #     rotation_angles = np.zeros((n_balls-1,))
         # z_all[idx_mask, 5] = rotation_angles
+
+    def _correlate_z(self, z_all):
+
+        # z_all: [n, z_dim]
+        ball_z_dim = len(self.target_property_indices) # 2
+        z_all_temp = z_all.copy()
+        # change the spurious dimensions as follows: for each sample and for each spurious ball
+        # toss a coin z_dim_spurious times that with probability p comes head and with probability 1-p comes tail. 
+        # For any of the dimensions, if it comes head, add the corresponding dimension from the
+        # invariant ball to the same dimension of the current spurious ball, otherwise leave it as is
+        offset = np.zeros((z_all.shape[0], self.n_balls_spurious, ball_z_dim))
+        coin = np.random.binomial(1, self.corr_prob, size=(z_all.shape[0], self.n_balls_spurious))
+        coin = np.repeat(coin[:, :, None], ball_z_dim, axis=-1)
+
+        for dim_idx in range(ball_z_dim):
+            offset[:, :, dim_idx] = coin[:, :, dim_idx] * z_all[:, :self.n_balls_invariant, dim_idx] * 0.2
+        z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] = z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] + offset
+        log.info(f"Number of samples falling out of the frame with + offset: {(z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1 - self.ball_size).sum(axis=(1, 2)).sum()}")
+        # subtract the offset for those that fall out of the frame
+        mask = (z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1 - self.ball_size).sum(axis=(1, 2)) >= 1
+        offset[mask] = offset[mask] * -2
+        z_all_temp[mask, self.n_balls_invariant:, :ball_z_dim] = z_all_temp[mask, self.n_balls_invariant:, :ball_z_dim] + offset[mask]
+        log.info(f"Number of samples falling out of the frame with - offset: {(z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] < self.ball_size).sum(axis=(1, 2)).sum() + (z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1 - self.ball_size).sum(axis=(1, 2)).sum()}")
+
+        # change the offset of any samples that is still out of bounds and also change its z_all_temp
+        # to the original z_all
+        mask = (z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1 - self.ball_size).sum(axis=(1, 2)) >= 1
+        offset[mask] = 0
+        z_all_temp[mask] = z_all[mask].copy()
+
+        # also change the coin tosses if the spurious ball is too close to the invariant ball, or if
+        # any two balls get too close to each other
+        close_coordinates_threshold = self.ball_size * 2
+        ball_coordinates = z_all_temp[:, : ,:2] # [n_balls_spurious + n_balls_invariant, 2]
+        coordinates_distance_matrix = np.linalg.norm(ball_coordinates[:, None, :] - ball_coordinates[:, :, None], axis=-1) # [n_balls_spurious + n_balls_invariant, n_balls_spurious + n_balls_invariant]
+        close_mask = (np.triu(coordinates_distance_matrix<close_coordinates_threshold).sum(-1)>1).sum(-1) # [n]
+        log.info(f"Number of samples with balls too close to each other with + offset: {close_mask.sum()}")
+        # change the offset for those that are too close to each other to negative
+        mask = (close_mask == True)
+        offset[mask] = offset[mask] * -2
+        z_all_temp[mask, self.n_balls_invariant:, :ball_z_dim] = z_all_temp[mask, self.n_balls_invariant:, :ball_z_dim] + offset[mask]
+        ball_coordinates = z_all_temp[:, : ,:2] # [n_balls_spurious + n_balls_invariant, 2]
+        coordinates_distance_matrix = np.linalg.norm(ball_coordinates[:, None, :] - ball_coordinates[:, :, None], axis=-1) # [n_balls_spurious + n_balls_invariant, n_balls_spurious + n_balls_invariant]
+        close_mask = (np.triu(coordinates_distance_matrix<close_coordinates_threshold).sum(-1)>1).sum(-1) # [n]
+        log.info(f"Number of samples with balls too close to each other with - offset: {close_mask.sum()}")
+
+        # change the offset of anything that now goes out of bounds or is still close to the invariant ball to 0
+        mask = np.logical_or((z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1 - self.ball_size), (z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] < self.ball_size)).sum(axis=(1, 2)) >= 1
+        offset[mask] = 0
+        z_all_temp[mask, self.n_balls_invariant:, :2] = z_all[mask, self.n_balls_invariant:, :2].copy()
+        mask = close_mask.copy()
+        offset[mask] = 0
+        z_all_temp[mask == 1, self.n_balls_invariant:, :2] = z_all[mask == 1, self.n_balls_invariant:, :2].copy()
+
+        # # change the coin tosses if the spurious ball is out of the frame, i.e. if any coordinate is
+        # # less than 0 or greater than 1 (less than 0 never happens as we're only adding + values)
+        # coin = np.logical_and(coin, z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] < 1 - self.ball_size)
+        # z_all_temp = z_all.copy()
+        # for dim_idx in range(ball_z_dim):
+        #     offset[:, :, dim_idx] = coin[:, :, dim_idx] * z_all[:, :self.n_balls_invariant, dim_idx] * 0.2
+        # z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] = z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] + offset
+
+        # # also change the coin tosses if the spurious ball is too close to the invariant ball, or if
+        # # any two balls get too close to each other
+        # close_coordinates_threshold = self.ball_size * 2
+        # ball_coordinates = z_all_temp[:, : ,:2] # [n_balls_spurious + n_balls_invariant, 2]
+        # # compute the distance between balls in ball_coordinates for each sample, i.e. the distance between
+        # # ball_coordinates[:, i] and ball_coordinates[:, j] for all i, j
+        # coordinates_distance_matrix = np.linalg.norm(ball_coordinates[:, None, :] - ball_coordinates[:, :, None], axis=-1) # [n_balls_spurious + n_balls_invariant, n_balls_spurious + n_balls_invariant]
+        # close_mask = (np.triu(coordinates_distance_matrix<close_coordinates_threshold).sum(-1)>1).sum(-1) # [n]
+        # log.info(f"Number of samples with balls too close to each other with + offset: {close_mask.sum()}")
+        # # TODO: This only considers the case where there are only two balls, should be written more carefully
+        # coin = np.logical_and(coin, close_mask[:, None, None] == False)
+        # for dim_idx in range(ball_z_dim):
+        #     offset[close_mask == 1, :, dim_idx] = coin[close_mask == 1, :, dim_idx] * z_all[close_mask == 1, :self.n_balls_invariant, dim_idx] * 0.2
+        # z_all_temp = z_all.copy()
+        # z_all[:, self.n_balls_invariant:, :ball_z_dim] = z_all[:, self.n_balls_invariant:, :ball_z_dim] + offset
+
+        # coin = np.logical_and(coin, close_mask[:, None, None] == False)
+        # for dim_idx in range(ball_z_dim):
+        #     offset[close_mask == 1, :, dim_idx] = coin[close_mask == 1, :, dim_idx] * z_all[close_mask == 1, :self.n_balls_invariant, dim_idx] * 0.2
+        # z_all_temp = z_all.copy()
+        # z_all[:, self.n_balls_invariant:, :ball_z_dim] = z_all[:, self.n_balls_invariant:, :ball_z_dim] + offset
+
+        ball_coordinates = z_all_temp[:, : ,:2]
+        coordinates_distance_matrix = np.linalg.norm(ball_coordinates[:, None, :] - ball_coordinates[:, :, None], axis=-1)
+        close_mask = (np.triu(coordinates_distance_matrix<close_coordinates_threshold).sum(-1)>1).sum(-1)
+        log.info(f"Number of overlapping samples: {close_mask.sum()}")
+        log.info(f"Number of oof samples: {(z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1 - self.ball_size).sum(axis=(1, 2)).sum() + (z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] < self.ball_size).sum(axis=(1, 2)).sum()}")
+        # log.info(f"Number of oof samples: {(z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] > 1).sum(axis=(1, 2)).sum() + (z_all_temp[:, self.n_balls_invariant:, :ball_z_dim] < 0).sum(axis=(1, 2)).sum()}")
+        log.info(f"Number of samples correlated: {((z_all_temp[:, 1, :2] == z_all[:, 1, :2]).sum(-1) != 2).sum()}")
+
+        z_all = z_all_temp.copy()
+
+        return z_all
 
     def renormalize(self):
         for t in self.transform.transforms:
