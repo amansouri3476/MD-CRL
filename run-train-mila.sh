@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --partition=unkillable
+#SBATCH --partition=long
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
@@ -133,12 +133,26 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","4-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-14-49/"
 # 8 domains
 # /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-56-07/
-python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","8-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-56-07/"
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","8-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-56-07/"
 # 16 domains
 # /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_05-57-11/
 # python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","16-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_05-57-11/"
 # data generation
-
+# ------------------------------------------------------------------------------------- #
+# ------------------------------ Beta-VAE (Uniform) ----------------------------- #
+# 2 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-55-05/
+python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls_beta_vae +model.beta=0.1,1.0,10.0 logger.wandb.tags=["beta-vae","2-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-55-05/" seed=1235,4256,49685,7383,9271 --multirun
+# 4 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-08-13/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","4-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-08-13/"
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls_beta_vae +model.beta=1.0 logger.wandb.tags=["test"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-08-13/"
+# 8 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-09-12/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","8-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-09-12/"
+# 16 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_06-20-54/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","16-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_06-20-54/"
 
 # ----------------------------- Systematic Sweep (Stage 2) ---------------------------- #
 # resnet18 64 bn-enc

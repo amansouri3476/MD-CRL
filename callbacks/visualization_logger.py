@@ -35,7 +35,10 @@ class VisualizationLoggerCallback(Callback):
             
                 # images, recons: [batch_size, num_channels, width, height]
                 images = batch["image"][:self.n_samples]
-                z, recons = self.model(images)
+                try:
+                    z, recons = self.model(images)
+                except:
+                    z, recons, _, _ = self.model(images)
 
                 images = images.permute(0, 2, 3, 1)
                 recons = recons.permute(0, 2, 3, 1)
@@ -95,7 +98,10 @@ class VisualizationLoggerCallback(Callback):
             
                 # images, recons: [batch_size, num_channels, width, height]
                 images = batch["image"][:self.n_samples]
-                z, recons = self.model(images)
+                try:
+                    z, recons = self.model(images)
+                except:
+                    z, recons, _, _ = self.model(images)
 
                 images = images.permute(0, 2, 3, 1)
                 recons = recons.permute(0, 2, 3, 1)
