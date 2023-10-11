@@ -80,45 +80,46 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         # r2_score(t_true, y_pred)
         # fit a linear regression from z to z_hat
         reg = LinearRegression().fit(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
-        # hz_pred = reg.predict(z.detach().cpu().numpy())
-        # r2 = r2_score(z_hat.detach().cpu().numpy(), hz_pred)
         r2 = reg.score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
-        self.log(f"r2", r2, prog_bar=True)
+        self.log(f"r2", r2, prog_bar=False)
+        reg = LinearRegression().fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        r2 = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        self.log(f"~r2", r2, prog_bar=True)
 
         # fit a linear regression from z_invariant dimensions to z_hat invariant dims
         reg = LinearRegression().fit(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        # hz_pred = reg.predict(z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        # r2 = r2_score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), hz_pred)
-        # self.log(f"hz_z_r2_", r2, prog_bar=True)
         r2 = reg.score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        self.log(f"hz_z_r2", r2, prog_bar=True)
+        self.log(f"hz_z_r2", r2, prog_bar=False)
+        reg = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        r2 = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        self.log(f"hz_z_~r2", r2, prog_bar=True)
         
         # fit a linear regression from z_spurious dimensions to z_hat invariant dims 
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
         reg = LinearRegression().fit(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        # hz_pred = reg.predict(z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        # r2 = r2_score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), hz_pred)
-        # self.log(f"hz_~z_r2_", r2, prog_bar=True)
         r2 = reg.score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        self.log(f"hz_~z_r2", r2, prog_bar=True)
+        self.log(f"hz_~z_r2", r2, prog_bar=False)
+        reg = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        r2 = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
+        self.log(f"hz_~z_~r2", r2, prog_bar=True)
         
         # fit a linear regression from z_invariant dimensions to z_hat spurious dims 
         # z_invariant: [batch_size, n_balls_invariant * z_dim_ball]
         reg = LinearRegression().fit(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        # hz_pred = reg.predict(z[:, :self.z_dim_invariant_model].detach().cpu().numpy())
-        # r2 = r2_score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), hz_pred)
-        # self.log(f"~hz_z_r2_", r2, prog_bar=False)
         r2 = reg.score(z[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_z_r2", r2, prog_bar=False)
+        reg = LinearRegression().fit(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        r2 = reg.score(z_hat[:, :self.z_dim_invariant_model].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        self.log(f"~hz_z_~r2", r2, prog_bar=False)
         
         # fit a linear regression from z_spurious dimensions to z_hat spurious dims
         # z_spurious: [batch_size, n_balls_spurious * z_dim_ball]
         reg = LinearRegression().fit(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        # hz_pred = reg.predict(z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
-        # r2 = r2_score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), hz_pred)
-        # self.log(f"~hz_~z_r2_", r2, prog_bar=False)
         r2 = reg.score(z[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy())
         self.log(f"~hz_~z_r2", r2, prog_bar=False)
+        reg = LinearRegression().fit(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        r2 = reg.score(z_hat[:, self.z_dim_invariant_model:].detach().cpu().numpy(), z[:, self.z_dim_invariant_model:].detach().cpu().numpy())
+        self.log(f"~hz_~z_~r2", r2, prog_bar=False)
 
         # comptue the average norm of first z_dim dimensions of z
         z_norm = torch.norm(z_hat[:, :self.z_dim_invariant_model], dim=1).mean()
@@ -219,7 +220,7 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         self.log(f"r2_linreg_start", r2, prog_bar=False)
         # self.log(f"mse_loss_linreg_start", mse_loss, prog_bar=False)
         r2, mse_loss = self.compute_r2(z_hat, z)
-        self.log(f"~r2_linreg_start", r2, prog_bar=False)
+        self.log(f"~r2_linreg_start", r2, prog_bar=True)
         # self.log(f"~mse_loss_linreg_start", mse_loss, prog_bar=False)
 
         # fit a linear regression from z_hat invariant dims to z_invariant dimensions
@@ -228,7 +229,7 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         self.log(f"hz_z_r2_linreg_start", r2, prog_bar=False)
         # self.log(f"hz_z_mse_loss_linreg_start", mse_loss, prog_bar=False)
         r2, mse_loss = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_invariant)
-        self.log(f"hz_z_~r2_linreg_start", r2, prog_bar=False)
+        self.log(f"hz_z_~r2_linreg_start", r2, prog_bar=True)
         # self.log(f"hz_z_~mse_loss_linreg", mse_loss, prog_bar=False)
 
         # fit a linear regression from z_hat invariant dims to z_spurious dimensions
@@ -237,5 +238,5 @@ class MixingMDEncodedAutoencoderPL(MixingAutoencoderPL):
         self.log(f"hz_~z_r2_linreg_start", r2, prog_bar=False)
         # self.log(f"hz_~z_mse_loss_linreg_start", mse_loss, prog_bar=False)
         r2, mse_loss = self.compute_r2(z_hat[:, :self.z_dim_invariant_model], z_spurious)
-        self.log(f"hz_~z_~r2_linreg_start", r2, prog_bar=False)
+        self.log(f"hz_~z_~r2_linreg_start", r2, prog_bar=True)
         # self.log(f"hz_~z_~mse_loss_linreg_start", mse_loss, prog_bar=False)

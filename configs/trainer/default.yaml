@@ -4,10 +4,10 @@ _target_: pytorch_lightning.Trainer
 # gpus: 1 # int # It should be set to 1 so that the gpu will be used.
 #                   Currently the list of all available gpus is being passed to the trainer.
 
-accelerator: "auto"
+accelerator: cpu
 devices: "auto"
 # max_epochs: *n_e # Stop training once this number of epochs is reached.
-min_epochs: 100 # Force training for at least these many epochs.
+min_epochs: 200 # Force training for at least these many epochs.
 max_epochs: 1000 # 1_000_000
 # max_steps: 200000
 # max_steps: 50000 # Disable it and use early stopping

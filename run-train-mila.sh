@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --partition=long
+#SBATCH --partition=unkillable
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=40G
-#SBATCH --time=09:59:00
+#SBATCH --mem=32G
+#SBATCH --time=02:59:00
 #SBATCH --output=./slurm_out/%j.out
 #SBATCH --error=./slurm_err/%j.err
 
@@ -99,32 +99,46 @@ export LD_PRELOAD=/home/mila/s/sayed.mansouri-tehrani/MD-CRL/hack.so
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- Balls --------------------------------------- #
 # ------------------------------------------------------------------------------------- #
+# DGP
+# python run_training.py trainer.accelerator='cpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-dgp"] ~callbacks.early_stopping datamodule.save_dataset=True datamodule.load_dataset=False datamodule.dataset.correlated_z=False datamodule.dataset.corr_prob=0.0 datamodule.dataset.num_domains=2,4,8,16 datamodule.dataset.invariant_low='[0.5,0.5]' datamodule.dataset.invariant_high='[0.9,0.9]'
+# python run_training.py trainer.accelerator='cpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-dgp"] ~callbacks.early_stopping datamodule.save_dataset=True datamodule.load_dataset=False datamodule.dataset.correlated_z=True datamodule.dataset.corr_prob=0.5 datamodule.dataset.num_domains=2,4,8,16 datamodule.dataset.invariant_low='[0.5,0.5]' datamodule.dataset.invariant_high='[0.9,0.9]'
 
 # ------------------------------------------------------------------------------------- #
-# -------------------------------- Reconstruction Only -------------------------------- #
+# ------------------------------ Reconstruction (Uniform) ----------------------------- #
 
 
 # cnn with conv and upsampling
 # python run_training.py trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=cnn_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","cnn"] ~callbacks.early_stopping
 
-# resnet18
-# python run_training.py trainer.accelerator='gpu' trainer.devices=1 ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=25 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","resnet"] ~callbacks.early_stopping
+# resnet18, non-overlapping dataset
 
-# non-overlapping dataset
-# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["test"] ~callbacks.early_stopping datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_06-20-54/"
+# 2 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-55-05/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","2-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-55-05/"
+# 4 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-08-13/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","4-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-08-13/"
+# 8 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-09-12/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","8-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-09-12/"
+# 16 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_06-20-54/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-uniform","16-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_06-20-54/"
+# --------------------------- Reconstruction (Correlation) ---------------------------- #
+# 2 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-13-12/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","2-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-13-12/"
+# 4 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-14-49/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","4-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-10_03-14-49/"
+# 8 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-56-07/
+python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","8-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_18-56-07/"
+# 16 domains
+# /home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_05-57-11/
+# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["balls-stage-1-corr","16-domains"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_05-57-11/"
+# data generation
 
-
-# python run_training.py trainer.accelerator='cpu' ckpt_path=null model/optimizer=adamw model.optimizer.lr=0.001 datamodule=md_balls model=balls model.z_dim=64 model/autoencoder=resnet18_ae_balls model/scheduler_config=reduce_on_plateau model.scheduler_config.scheduler_dict.monitor="train_loss" logger.wandb.tags=["mila","balls","test"] ~callbacks.early_stopping
-
-# ------------------------- Reconstruction Only + Correlation ------------------------- #
-# correlated z, data generation
-# python run_training.py trainer.accelerator='cpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["test"] ~callbacks.early_stopping datamodule.save_dataset=True datamodule.load_dataset=False datamodule.dataset.correlated_z=True datamodule.dataset.corr_prob=0.5 datamodule.dataset.num_domains=16 datamodule.dataset.invariant_low='[0.5,0.5]' datamodule.dataset.invariant_high='[0.9,0.9]'
-
-# correlated z, p_corr=1.0, reconstruction with path to data
-# python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["test"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_05-56-39/"
-
-# correlated z, p_corr=0.5, reconstruction with path to data
-python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_path=null datamodule=md_balls model=balls model.z_dim=128 model/autoencoder=resnet18_ae_balls logger.wandb.tags=["test"] ~callbacks.early_stopping datamodule.save_dataset=False datamodule.load_dataset=True datamodule.data_dir="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_05-57-11/"
 
 # ----------------------------- Systematic Sweep (Stage 2) ---------------------------- #
 # resnet18 64 bn-enc
@@ -228,13 +242,21 @@ python run_training.py trainer.accelerator='gpu' trainer.devices="auto" ckpt_pat
 
 # ------------------------------------------------------------------------------------- #
 # ---------------- Disentanglement with encoded images + Correlation ------------------ #
-# non-overlapping mixed correlated dataset
+# non-overlapping mixed correlated dataset p=1.0
 # default values, sanity check, mmd-minmax
-# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["balls-correlatedminmax-mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-08_12-07-59/" model.z_dim=128 model.hinge_loss_weight=0.0 model.z_dim_invariant_fraction=2.0 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=1. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False --multirun
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["balls-correlatedminmax-mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_06-58-48/" model.z_dim=128 model.hinge_loss_weight=0.0 model.z_dim_invariant_fraction=0.2,0.5,0.8,1.0 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=1. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False --multirun
 # default values, sanity check, mmd
-# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_07-21-05/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=0. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False seed=1234,4586,82912 --multirun
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_06-58-48/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=0. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False seed=1234,4586,82912 --multirun
 # default values, sanity check, minmax
-# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","minmax"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-05_07-21-05/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=0. model.penalty_criterion.minmax=1. model.top_k=5,10 model.save_encoded_data=False seed=1234,4586,82912 --multirun
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","minmax"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_06-58-48/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=0. model.penalty_criterion.minmax=1. model.top_k=5,10 model.save_encoded_data=False seed=1234,4586,82912 --multirun
+
+# non-overlapping mixed correlated dataset p=0.5
+# default values, sanity check, mmd-minmax
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["balls-correlatedminmax-mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_07-31-12/" model.z_dim=128 model.hinge_loss_weight=0.0 model.z_dim_invariant_fraction=0.2,0.5,0.8,1.0 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=1. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False --multirun
+# default values, sanity check, mmd
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","mmd"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_07-31-12/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=1. model.penalty_criterion.minmax=0. model.mmd_loss.kernel_multiplier=1.0 model.mmd_loss.kernel_number=1 model.mmd_loss.fix_sigma=1.0 model.save_encoded_data=False seed=1234,4586,82912 --multirun
+# default values, sanity check, minmax
+# python run_training.py trainer.accelerator="cpu" trainer.devices="auto" model.optimizer.lr=0.001 datamodule=balls_encoded datamodule.batch_size=1024 model=balls_md_encoded_autoencoder model.penalty_weight=1.0 logger.wandb.tags=["default-sanity-check-balls","minmax"] ~callbacks.early_stopping ~callbacks.visualization_callback run_path="/home/mila/s/sayed.mansouri-tehrani/scratch/logs/training/runs/autoencoder_md_balls_128_iv_1_sp_1/2023-10-09_07-31-12/" model.z_dim=128 model.hinge_loss_weight=0.0,0.01 model.z_dim_invariant_fraction=0.2,0.5,0.8 model/autoencoder=mlp_ae_balls ckpt_path=null model.penalty_criterion.mmd=0. model.penalty_criterion.minmax=1. model.top_k=5,10 model.save_encoded_data=False seed=1234,4586,82912 --multirun
 
 # ------------------------------------------------------------------------------------- #
 # --------------------------------------- MNIST --------------------------------------- #
