@@ -10,8 +10,8 @@ save_dataset: True
 load_dataset: False
 # save_dataset: True
 # load_dataset: False
-data_dir: "/home/mila/s/sayed.mansouri-tehrani/scratch/poly_mixing/"
-data_dir_narval: "/home/aminm/scratch/poly_mixing/"
+data_dir: ${work_dir} # "/home/mila/s/sayed.mansouri-tehrani/scratch/poly_mixing/"
+data_dir_narval: ${work_dir} # "/home/aminm/scratch/poly_mixing/"
 # data_dir_narval: "/home/aminm/scratch/md_balls/${datamodule.dataset.n_balls}/"
 
 seed: ${seed}
