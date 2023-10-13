@@ -130,6 +130,9 @@ class MixingAutoencoderPL(BasePl):
         reg = LinearRegression().fit(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
         r2 = reg.score(z.detach().cpu().numpy(), z_hat.detach().cpu().numpy())
         self.log(f"r2", r2, prog_bar=True)
+        reg = LinearRegression().fit(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        r2 = reg.score(z_hat.detach().cpu().numpy(), z.detach().cpu().numpy())
+        self.log(f"~r2", r2, prog_bar=True)
 
         # we have 4 linear regression tasks:
         # 1. predicting z_hat[:z_dim_invariant] from z[:z_dim_invariant]

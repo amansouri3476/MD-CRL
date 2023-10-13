@@ -5,7 +5,7 @@ latent_dim: ${model.z_dim}
 width: 200
 negative_slope: 0.2
 
-encoder_fc:
+encoder:
   _target_: models.modules.mlp_ae.Encoder
 
   encoder_layers:
@@ -60,7 +60,7 @@ encoder_fc:
     #   negative_slope: 0.5
     
     
-decoder_fc:
+decoder:
   _target_: models.modules.mlp_ae.Decoder
 
   decoder_layers:

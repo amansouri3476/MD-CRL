@@ -60,6 +60,7 @@ class BasePl(pl.LightningModule):
         self.stddev_eps = self.hparams.get("stddev_eps", 1e-4)
         self.hinge_loss_weight = self.hparams.get("hinge_loss_weight", 0.0)
         self.adversarial_training_reg_coeff = self.hparams.get("adversarial_training_reg_coeff", 0.0)
+        self.r2_fit_intercept = self.hparams.get("r2_fit_intercept", True)
 
     def loss(self, x, x_hat, z_hat, domains):
 
@@ -92,7 +93,7 @@ class BasePl(pl.LightningModule):
 
     def compute_r2(self, x, y):
 
-        reg = LinearRegression().fit(x.detach().cpu().numpy(), y.detach().cpu().numpy())
+        reg = LinearRegression(fit_intercept=self.r2_fit_intercept).fit(x.detach().cpu().numpy(), y.detach().cpu().numpy())
         r2 = reg.score(x.detach().cpu().numpy(), y.detach().cpu().numpy())
         # compute the mean squared error of the prediction
         mse_loss = F.mse_loss(torch.tensor(reg.predict(x.detach().cpu().numpy()), device=x.device), y)

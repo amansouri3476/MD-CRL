@@ -2,6 +2,8 @@ dataset_target: datamodule.md_mixing_encoded_dataset.MixingMultiDomainEncodedDat
 
 dataset_name: multi_domain_mixing_encoded_${datamodule.dataset.num_domains}
 num_domains: ${retrieve_num_domain:${run_path}}
+x_dim: ${datamodule.x_dim}
+z_dim: ${datamodule.x_dim}
 
 dataset_parameters:
   train:

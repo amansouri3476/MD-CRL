@@ -8,7 +8,7 @@ encoder:
   encoder_layers:
     Linear1:
       _target_: torch.nn.Linear
-      in_features: ${datamodule.dataset.x_dim}
+      in_features: ${model.autoencoder.latent_dim}
       out_features: ${model.autoencoder.latent_dim}
     
 decoder:
@@ -18,4 +18,4 @@ decoder:
     Linear1:
       _target_: torch.nn.Linear
       in_features: ${model.autoencoder.latent_dim}
-      out_features: ${datamodule.dataset.x_dim}
+      out_features: ${model.autoencoder.latent_dim}

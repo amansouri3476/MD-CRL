@@ -5,16 +5,14 @@ import torch.nn as nn
 import numpy as np
 
 
-class Encoder(pl.LightningModule):
+class Encoder(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        
-        self.save_hyperparameters()
         
         # note that encoder layers are instantiated recursively by hydra, so we only need to connect them
         # by nn.Sequential
         self.layers = torch.nn.Sequential(
-            *[layer_config for _, layer_config in self.hparams.encoder_layers.items()]
+            *[layer_config for _, layer_config in kwargs['encoder_layers'].items()]
         )        
 
     def forward(self, x):
@@ -22,16 +20,14 @@ class Encoder(pl.LightningModule):
         # input `x` has shape: [batch_size, x_dim]
         return self.layers(x)
 
-class Decoder(pl.LightningModule):
+class Decoder(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
         
-        self.save_hyperparameters()
-        
         # note that encoder layers are instantiated recursively by hydra, so we only need to connect them
         # by nn.Sequential
-        print(self.hparams.decoder_layers.items())
-        for layer_key, layer in self.hparams.decoder_layers.items():
+        print(kwargs['decoder_layers'].items())
+        for layer_key, layer in kwargs['decoder_layers'].items():
             self.layers = layer
                 
     def forward(self, z):
@@ -42,21 +38,20 @@ class Decoder(pl.LightningModule):
         return self.layers(z)
         
 
-class FCAEPoly(pl.LightningModule):
+class FCAEPoly(nn.Module):
     def __init__(self, *args, **kwargs):
         """
         """
         super().__init__()
-        self.save_hyperparameters()
 
-        self.encoder_fc = hydra.utils.instantiate(self.hparams.encoder_fc)
-        self.decoder_fc = hydra.utils.instantiate(self.hparams.decoder_fc)
-        print(f"encoder: {self.encoder_fc}")
-        print(f"decoder: {self.decoder_fc}")
+        self.encoder = hydra.utils.instantiate(kwargs['encoder'])
+        self.decoder = hydra.utils.instantiate(kwargs['decoder'])
+        print(f"encoder: {self.encoder}")
+        print(f"decoder: {self.decoder}")
         
     def forward(self, x):
         # `x` has shape: [batch_size, x_dim]
-        z = self.encoder_fc(x)
-        x_hat = self.decoder_fc(z)
+        z = self.encoder(x)
+        x_hat = self.decoder(z)
 
         return z, x_hat

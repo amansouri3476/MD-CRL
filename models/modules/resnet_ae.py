@@ -4,21 +4,19 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-class Encoder(pl.LightningModule):
+class Encoder(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-        self.save_hyperparameters()
-
         try:
-            resnet18 = self.hparams.encoder_layers.resnet18
+            resnet18 = kwargs['encoder_layers']['resnet18']
         except:
             import torchvision.models as models
             resnet18 = models.resnet18(pretrained=False)  # Create an empty ResNet18 model
             # resnet18.load_state_dict(torch.load("resnet18-f37072fd.pth"))  # Load weights from the checkpoint
 
         mlp_layers = torch.nn.Sequential(
-            *[layer_config for _, layer_config in self.hparams.encoder_layers.mlp_layers.items()]
+            *[layer_config for _, layer_config in kwargs['encoder_layers']['mlp_layers'].items()]
         )
         self.layers = torch.nn.Sequential(*list(resnet18.children())[:-1], *mlp_layers)
         # for param in resnet18.parameters():
@@ -36,23 +34,22 @@ class Encoder(pl.LightningModule):
         return x
 
 
-class Decoder(pl.LightningModule):
+class Decoder(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
         
-        self.save_hyperparameters()
-        self.width = self.hparams.width
-        self.height = self.hparams.height
-        self.num_channels = self.hparams.num_channels
+        self.width = kwargs['width']
+        self.height = kwargs['height']
+        self.num_channels = kwargs['num_channels']
         
         # note that encoder layers are instantiated recursively by hydra, so we only need to connect them
         # by nn.Sequential
         self.mlp_layers = torch.nn.Sequential(
-            *[layer_config for _, layer_config in self.hparams.mlp_layers.items()]
+            *[layer_config for _, layer_config in kwargs['mlp_layers'].items()]
         )
 
         self.deconv_layers = torch.nn.Sequential(
-            *[layer_config for _, layer_config in self.hparams.decoder_layers.items()]
+            *[layer_config for _, layer_config in kwargs['decoder_layers'].items()]
         )
         self.layers = torch.nn.Sequential(*self.mlp_layers, *self.deconv_layers)
                 
@@ -66,20 +63,19 @@ class Decoder(pl.LightningModule):
         return x
         
 
-class ResNetAE(pl.LightningModule):
+class ResNetAE(nn.Module):
     def __init__(self, *args, **kwargs):
         """
         """
         super().__init__()
-        self.save_hyperparameters()
 
-        self.encoder_cnn = hydra.utils.instantiate(self.hparams.encoder_cnn)
-        self.decoder_cnn = hydra.utils.instantiate(self.hparams.decoder_cnn)
+        self.encoder = hydra.utils.instantiate(kwargs['encoder_cnn'])
+        self.decoder = hydra.utils.instantiate(kwargs['decoder_cnn'])
 
 
     def forward(self, image):
         # `image` has shape: [batch_size, num_channels, width, height].
-        z = self.encoder_cnn(image)
-        recons = self.decoder_cnn(z)
+        z = self.encoder(image)
+        recons = self.decoder(z)
         return torch.reshape(z, (z.shape[0], -1)), recons
 
